@@ -3,12 +3,16 @@
 Self-hosted web app (home network only) for tracking coffee bean inventory, brews, and cup quality.
 One app, two layouts: **phone** (capture & reflection) and **station** (tablet mounted at the coffee station, brewing).
 The phone can do everything the station can — if the tablet is charging, the whole flow runs on the phone.
+Multiple people share one inventory; each has their own tastings and preferences.
 
 ## Stack (decided)
 - Backend: Python (FastAPI) + SQLite, on the home server
 - Frontend: installable PWA (Add to Home Screen), offline-first; station in kiosk / standalone mode, dark theme, Wake Lock while brewing
 - Extraction: local Ollama VLM (`qwen3.5:4b`, compare `gemma4:e4b`) — see `extract_beans.py`
-- HTTPS on LAN: own domain (e.g. `coffee.<domain>`) → UniFi local DNS record pointing to the server's LAN IP; Caddy gets a Let's Encrypt cert via DNS-01 challenge (needs Caddy build with the DNS provider plugin + API token)
+- HTTPS on LAN: own domain (e.g. `coffee.<domain>`) → UniFi local DNS record pointing to the server's LAN IP; Caddy gets a Let's Encrypt cert via DNS-01 challenge
+  - DNS is on Cloudflare: Caddy built with `caddy-dns/cloudflare` (xcaddy or prebuilt image) + scoped API token (Zone → DNS → Edit, this zone only)
+  - DNS-01 only writes temporary TXT records; no public A record needed
+  - Fallback if a device bypasses UniFi DNS (iCloud Private Relay, Android Private DNS / DoH): DNS-only Cloudflare A record → the LAN IP
   - Real cert, no device setup, nothing exposed to the internet
   - Required for service worker (offline), install, Wake Lock, web push on iOS
 - No VPN: sync only happens on home Wi-Fi; away from home the phone works offline
@@ -19,6 +23,28 @@ The phone can do everything the station can — if the tablet is charging, the w
 - Station layout: inventory tiles, Brew again, timer up front; ≥64px targets, no typing
 - Timer is timestamp-based (stores step start times, derives elapsed) — iOS suspends PWAs on lock / app switch
 - Audio cue for timer steps (unlocked by the Start tap); no vibration on iOS, so always pair with a visual cue
+
+### Station tablet
+- Primary: old Amazon Fire 7 reflashed with LineageOS (Android); iPad supported as secondary (Guided Access for kiosk)
+- LineageOS ships without a PWA-capable browser — sideload a Chromium-based one (Chrome / Cromite) for install, service worker, Wake Lock
+- Kiosk: Android screen pinning, or Fully Kiosk Browser if pinning isn't enough
+- Constraints drive the frontend budget: ~1 GB RAM (older generations), 1024×600 screen
+  - Small bundle, no heavy framework or animation; station layout must fit a short landscape viewport
+- Check LineageOS support for the exact Fire 7 generation / firmware before committing (unofficial ports, bootloader unlock varies)
+- Always-on charging on an old battery → swelling risk; consider a smart plug to cycle charging
+
+## Users
+- Shared inventory (coffees, bags, equipment, recipes); per-person brews, tastings, preferences
+- No passwords (trusted LAN): profile picker; each device remembers a default user
+  - Phone defaults to its owner; station shows a "who's brewing?" chip row (one tap, remembers last)
+- A brew has one brewer and **zero or more tasters** — a shared carafe can be rated by everyone
+  - At "Done", pick who's drinking (chips); each taster gets a pending-tasting card / push on their own phone
+  - Anyone can also rate on the station by tapping their avatar first
+- **Brew again** defaults to the current user's last recipe for this bag × method, falls back to anyone's
+- Grind memory is per bag × method × grinder (shared — it's about the equipment, not the person)
+- Push subscriptions are per user × device
+- Ratings are personal scales — compare within a person, not raw scores across people
+- Every device syncs all users' data (small)
 
 ## Offline & sync
 - Local store on each device (IndexedDB) + **outbox** of pending mutations; hand-rolled, no sync framework
@@ -52,12 +78,20 @@ The phone can do everything the station can — if the tablet is charging, the w
 - Auto-decrement grams remaining by dose (derived from the brew)
 - Rating, tiered — screen 1 is the < 10 s path, every tap autosaves (no submit button):
   1. **Overall 1–5** (required)
-  2. **Cup temperature: Hot / Warm / Cool** — preselected from `minutes_after_brew` (default < 10 min Hot, 10–25 Warm, > 25 Cool; configurable), one tap to correct
-  3. Optional "More detail": aroma, acidity, sweetness, body, aftertaste — each **intensity** 1–5 (Low → High); liking lives in the overall score only
+  2. **Cup temperature: Hot / Warm / Cool** — subjective, by feel; one tap, no preselection, no time-based cutoffs (`minutes_after_brew` is still recorded alongside)
+  3. Optional "More detail", each 1–5:
+     - Intensity (Low → High): aroma, acidity, sweetness, body, aftertaste
+     - Quality: balance (Unbalanced → Harmonious), cleanness (Muddy → Clean)
+     - Liking lives in the overall score; only balance and cleanness are judgments by nature
   4. Optional compass: Sour↔Balanced↔Bitter, Weak↔Balanced↔Strong (dial-in hints)
   5. Optional flavor tags, free note
-- **Multiple tastings per brew** — one per temperature, to track how a cup performs as it cools ("Rate again as it cools")
-- Overall score anchors (draft): 1 wouldn't finish · 2 drinkable, clear flaws · 3 good everyday cup · 4 very good, brew it this way again · 5 memorable
+- **Multiple tastings per brew** — per taster and per temperature, to track how a cup performs as it cools ("Rate again as it cools")
+- Overall score anchors (draft, shown under the stars):
+  - ★ **Wouldn't finish it** — something is wrong
+  - ★★ **Drinkable, but off** — a clear flaw (sour, bitter, thin, muddy)
+  - ★★★ **Good** — a solid everyday cup
+  - ★★★★ **Very good** — would brew it exactly this way again
+  - ★★★★★ **Memorable** — the best this coffee gets; I'd tell someone about it
 - "Pending tasting" card for recent unrated brews — a convenience only, nothing enforced; late ratings allowed, `minutes_after_brew` recorded
 - Optional web push "How's the cup?" when a brew reaches the server (iOS: Home Screen app only); offline brews rely on the in-app card
 - Rest windows per method (configurable), freezer in/out events → effective age
@@ -65,6 +99,7 @@ The phone can do everything the station can — if the tablet is charging, the w
 ## Phase 3 — Insights & extras
 - Sorted tables, best brew per bag, simple scatters (no premature "insights" — data is sparse & confounded)
 - Cup performance by temperature (overall score Hot vs. Warm vs. Cool per coffee)
+- Per-person preferences (process / roast / origin each person rates highest); where tasters agree and disagree
 - SCA flavor-wheel tags; roaster notes vs. tasted notes
 - Cost per cup, re-buy / wishlist from archived coffees
 - Recipe card export
@@ -74,9 +109,11 @@ The phone can do everything the station can — if the tablet is charging, the w
 - All entities: client-generated UUID, `created_at`, `updated_at`, `deleted_at` (tombstone)
 - Brew stores a **snapshot** of recipe params (+ `template_id` for provenance)
 - Brew params: typed core (method, dose, water/yield, time, temp, grinder+setting) + JSON for method-specific extras
-- Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` (hot/warm/cool), `overall` (1–5), optional intensities / compass / tags / note
+- `User`: name, avatar/color; no credentials
+- Brew: `brewer_id` (user); `BrewTaster` join (brew × user) for who's drinking → drives pending cards
+- Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), compass, tags, note
 - Storage as events (opened, frozen, thawed, finished, gram adjustments), not booleans or counters
-- `user_id` on brews/tastings from day one
+- `updated_by` on shared entities (who edited a bag)
 - Server keeps a monotonic change sequence for the pull cursor
 
 ## Out of scope (for now)
@@ -84,11 +121,8 @@ Bluetooth scales, water chemistry, social sharing, roaster databases, barcode sc
 native app shell / iOS Live Activities, enforced rating windows, remote sync over VPN.
 
 ## Open questions
-- Exact detail attribute list (add balance / clean cup?)
-- Temperature band thresholds per method (espresso cools faster than a carafe)
-- Wording of the 1–5 anchors
-- Tablet OS (affects kiosk setup: iPad Guided Access vs. Android screen pinning / Fully Kiosk)
-- DNS provider for the DNS-01 challenge
+- Review the drafted 1–5 anchor wording
+- Exact Fire 7 generation → LineageOS build availability and Android / WebView version
 
 ## Pitfalls to watch
 1. Required input per routine brew must stay < ~10 s
