@@ -68,6 +68,7 @@ Multiple people share one inventory; each has their own tastings and preferences
 - Store raw VLM output, model, prompt version, and which fields the user corrected
 - Bag status: Resting / Open / Frozen / Finished; grams remaining (derived, manual adjust as an event)
 - Inventory view (station layout primary): photo tiles with days-off-roast, rest-status color, grams left
+  - **Most-used feature** — browsing must be instant and finding a bag effortless (search, filters, sort); see UX review
 
 ## Phase 2 — Brew log + rating
 - Equipment, added from settings (one grinder today, more later):
@@ -111,6 +112,14 @@ Multiple people share one inventory; each has their own tastings and preferences
 - SCA flavor-wheel tags; roaster notes vs. tasted notes
 - Cost per cup, re-buy / wishlist from archived coffees
 - Recipe card export
+
+## Phase 4 — Recommendations (after there's data)
+- On the station: pick a flavor / style / mood (e.g. "fruity & bright", "chocolatey", "something new") → suggest beans in stock + recipes that rated well
+- Per person: uses that person's tastings; falls back to everyone's
+- Not built now, but the data must support it — keep these consistent from day one:
+  - Flavor tags from one controlled vocabulary (SCA wheel based) for both roaster notes and tasted tags
+  - Process / origin / variety / roast level normalized through aliases
+  - Every brew linked to bag, recipe version, brewer, grinder; every tasting linked to a brew and a person
 
 ## Data model (decide early)
 - `Roaster → Coffee → Bag → Brew → Tasting` (re-buys link to the same Coffee)

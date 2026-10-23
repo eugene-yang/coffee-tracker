@@ -95,7 +95,7 @@ Conventions for every **synced** table:
 | `user` | name, color, avatar | No credentials |
 | `setting` | key, value (JSON) | Synced: temp band thresholds, rest windows per method, push delay |
 | `roaster` | name, aliases (JSON) | |
-| `coffee` | roaster_id, name, origin, producer, variety, process, roast_level, altitude, tasting_notes (JSON), notes | Re-buys share a coffee |
+| `coffee` | roaster_id, name, origin, producer, variety, process, roast_level, altitude, tasting_notes (JSON, raw text), flavor_tags (JSON, controlled vocabulary), notes | Re-buys share a coffee |
 | `bag` | coffee_id, roast_date, weight_g, price, purchased_at, review_state (`needs_review` / `reviewed`) | Status and grams are **derived** |
 | `bag_event` | bag_id, kind (`opened` `frozen` `thawed` `finished` `adjust`), grams_delta, at, user_id | Append-only |
 | `photo` | bag_id / brewer_id, sha256, width, height, uploaded (bool) | File on disk keyed by id |
@@ -192,6 +192,12 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 
 **Data layer**: Svelte stores read from IndexedDB; all writes through `mutate()`. Screens never call the network directly.
 
+**Inventory performance** (most-used screen):
+- Whole inventory lives in IndexedDB and in memory (hundreds of bags, not thousands) → search, filter, sort are synchronous, no network, no spinners
+- Search index built in memory at startup over roaster, coffee name, origin, process, variety, flavor tags (incl. aliases)
+- Thumbnails pre-generated server-side (small WebP), cached cache-first by the service worker → tiles render instantly offline
+- Finished bags excluded from the default view but searchable
+
 **Timer**: state is start timestamps + laps persisted in IndexedDB → survives lock, reload, app switch. Wake Lock while `/brew/:id` is open, re-acquired on `visibilitychange`. Audio cue via a pre-unlocked `AudioContext` (Start tap) + visual flash.
 
 **Current user**: per-device default stored locally; station asks "who's brewing?" (chips, remembers last).
@@ -227,7 +233,9 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 - Web Push subscribe + scheduler; backups + restore test; sync edge cases (long offline, many photos)
 - Exit: a week with no sync bugs; restore from backup verified
 
-**Then**: use it for a month (scope pitfall #7), re-scope, then Phase 3 insights.
+**Then**: use it for a month (scope pitfall #7), re-scope, then Phase 3 insights and Phase 4 recommendations.
+
+**Recommendations (later)**: start as a server-side scoring function over the person's tastings (flavor tags, process, origin vs. overall score) → rank in-stock bags and their best recipe; consider the local LLM only for turning a free-text request ("something fruity") into tags. Requires: controlled flavor vocabulary and alias normalization from M1 (already in the plan).
 
 ## 9. Testing
 
@@ -250,5 +258,5 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 ## 11. Open questions for the plan
 
 - Svelte vs. Preact — Svelte proposed for bundle size; Preact if you'd rather stay closer to React
-- Docker Compose vs. bare `systemd` + `uv` on the server — depends on what the home server already runs
-- Who generates the method icons — hand-drawn SVGs in M2 (proposed) vs. buying a commercial set
+
+Decided: Docker Compose for deploy; method icons drawn in-house (M2).
