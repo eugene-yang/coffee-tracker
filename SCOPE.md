@@ -25,12 +25,12 @@ Multiple people share one inventory; each has their own tastings and preferences
 - Audio cue for timer steps (unlocked by the Start tap); no vibration on iOS, so always pair with a visual cue
 
 ### Station tablet
-- Primary: old Amazon Fire 7 reflashed with LineageOS (Android); iPad supported as secondary (Guided Access for kiosk)
+- Treated like a cheap POS terminal: primary is an old Amazon Fire 7 reflashed with LineageOS (Android; the flashing itself is a separate project)
+- Alternative: iPad mini (Guided Access for kiosk)
 - LineageOS ships without a PWA-capable browser — sideload a Chromium-based one (Chrome / Cromite) for install, service worker, Wake Lock
 - Kiosk: Android screen pinning, or Fully Kiosk Browser if pinning isn't enough
 - Constraints drive the frontend budget: ~1 GB RAM (older generations), 1024×600 screen
   - Small bundle, no heavy framework or animation; station layout must fit a short landscape viewport
-- Check LineageOS support for the exact Fire 7 generation / firmware before committing (unofficial ports, bootloader unlock varies)
 - Always-on charging on an old battery → swelling risk; consider a smart plug to cycle charging
 
 ## Users
@@ -40,8 +40,8 @@ Multiple people share one inventory; each has their own tastings and preferences
 - A brew has one brewer and **zero or more tasters** — a shared carafe can be rated by everyone
   - At "Done", pick who's drinking (chips); each taster gets a pending-tasting card / push on their own phone
   - Anyone can also rate on the station by tapping their avatar first
-- **Brew again** defaults to the current user's last recipe for this bag × method, falls back to anyone's
-- Grind memory is per bag × method × grinder (shared — it's about the equipment, not the person)
+- Anyone can brew for anyone — the brewer and the tasters are independent
+- **Brew again** defaults to the current user's last brew for this bag × method, falls back to anyone's
 - Push subscriptions are per user × device
 - Ratings are personal scales — compare within a person, not raw scores across people
 - Every device syncs all users' data (small)
@@ -70,15 +70,24 @@ Multiple people share one inventory; each has their own tastings and preferences
 - Inventory view (station layout primary): photo tiles with days-off-roast, rest-status color, grams left
 
 ## Phase 2 — Brew log + rating
-- Equipment entities (brewers, grinders, filters); grinder setting stored with grinder id
-- Recipe templates per method; **Brew again** (last recipe for this bag × method) as the primary action
-- Grind setting memory per bag × method × grinder
-- Optional step timer (bloom, pours); espresso "Pull another" dial-in loop
+- Equipment, added from settings (one grinder today, more later):
+  - **Grinder**: name, setting format hint (numbers, clicks, `2.3.1`…)
+  - **Method**: name + kind (pour-over / immersion / espresso / other), brewer, filter as free text
+- **Recipe** — links to a method and (optionally) a grinder; loosely structured to start:
+  - Optional core fields: dose, water / yield, temp, grind setting (with its grinder)
+  - Steps as free text or a simple list — each step may carry a time, a weight, both, or neither
+  - "Freestyle" is a valid recipe: method + grinder + a note, nothing else required
+  - Keep every recipe; editing creates a new version so old brews still point at what was actually used
+- **Brew again** (last brew for this bag × method, incl. grind setting) as the primary action; "From recipe" as the second
+- Brew deviates freely from its recipe — the brew keeps its own snapshot
+- Timer: steps with times become cues; otherwise a plain stopwatch with laps; espresso "Pull another" dial-in loop
 - Steppers & chips only — no typing during brew; undo instead of confirms
 - Auto-decrement grams remaining by dose (derived from the brew)
 - Rating, tiered — screen 1 is the < 10 s path, every tap autosaves (no submit button):
   1. **Overall 1–5** (required)
-  2. **Cup temperature: Hot / Warm / Cool** — subjective, by feel; one tap, no preselection, no time-based cutoffs (`minutes_after_brew` is still recorded alongside)
+  2. **Cup temperature: Hot / Warm / Cool** — preselected from `minutes_after_brew`, one tap to override by feel
+     - Thresholds are a user-editable setting (start: < 10 min Hot, 10–25 Warm, > 25 Cool)
+     - Store both the suggested and chosen band → later compare against time since brew and retune thresholds
   3. Optional "More detail", each 1–5:
      - Intensity (Low → High): aroma, acidity, sweetness, body, aftertaste
      - Quality: balance (Unbalanced → Harmonious), cleanness (Muddy → Clean)
@@ -86,12 +95,7 @@ Multiple people share one inventory; each has their own tastings and preferences
   4. Optional compass: Sour↔Balanced↔Bitter, Weak↔Balanced↔Strong (dial-in hints)
   5. Optional flavor tags, free note
 - **Multiple tastings per brew** — per taster and per temperature, to track how a cup performs as it cools ("Rate again as it cools")
-- Overall score anchors (draft, shown under the stars):
-  - ★ **Wouldn't finish it** — something is wrong
-  - ★★ **Drinkable, but off** — a clear flaw (sour, bitter, thin, muddy)
-  - ★★★ **Good** — a solid everyday cup
-  - ★★★★ **Very good** — would brew it exactly this way again
-  - ★★★★★ **Memorable** — the best this coffee gets; I'd tell someone about it
+- Overall score labels (shown under the stars): ★ Wouldn't finish · ★★ Off · ★★★ Good · ★★★★ Brew again · ★★★★★ Memorable
 - "Pending tasting" card for recent unrated brews — a convenience only, nothing enforced; late ratings allowed, `minutes_after_brew` recorded
 - Optional web push "How's the cup?" when a brew reaches the server (iOS: Home Screen app only); offline brews rely on the in-app card
 - Rest windows per method (configurable), freezer in/out events → effective age
@@ -99,6 +103,8 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Phase 3 — Insights & extras
 - Sorted tables, best brew per bag, simple scatters (no premature "insights" — data is sparse & confounded)
 - Cup performance by temperature (overall score Hot vs. Warm vs. Cool per coffee)
+- Temperature threshold check: suggested vs. chosen band against `minutes_after_brew`
+- Recipe comparison per coffee (which recipe / grind setting rates best)
 - Per-person preferences (process / roast / origin each person rates highest); where tasters agree and disagree
 - SCA flavor-wheel tags; roaster notes vs. tasted notes
 - Cost per cup, re-buy / wishlist from archived coffees
@@ -107,22 +113,20 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Data model (decide early)
 - `Roaster → Coffee → Bag → Brew → Tasting` (re-buys link to the same Coffee)
 - All entities: client-generated UUID, `created_at`, `updated_at`, `deleted_at` (tombstone)
-- Brew stores a **snapshot** of recipe params (+ `template_id` for provenance)
-- Brew params: typed core (method, dose, water/yield, time, temp, grinder+setting) + JSON for method-specific extras
+- `Grinder`, `Method`, `Recipe` (versioned; `method_id`, optional `grinder_id`, optional core params, `steps` as text or JSON list, note, `author_id`)
+- Brew stores a **snapshot** of params (+ `recipe_id` / version for provenance, null for freestyle)
+- Brew params: typed core, all optional except method (dose, water/yield, time, temp, grinder + setting as string) + JSON for method-specific extras
 - `User`: name, avatar/color; no credentials
 - Brew: `brewer_id` (user); `BrewTaster` join (brew × user) for who's drinking → drives pending cards
-- Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), compass, tags, note
+- Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` + `temp_band_suggested` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), compass, tags, note
 - Storage as events (opened, frozen, thawed, finished, gram adjustments), not booleans or counters
 - `updated_by` on shared entities (who edited a bag)
+- Settings (synced): temperature band thresholds, rest windows per method
 - Server keeps a monotonic change sequence for the pull cursor
 
 ## Out of scope (for now)
 Bluetooth scales, water chemistry, social sharing, roaster databases, barcode scanning (QR → roaster URL maybe later),
 native app shell / iOS Live Activities, enforced rating windows, remote sync over VPN.
-
-## Open questions
-- Review the drafted 1–5 anchor wording
-- Exact Fire 7 generation → LineageOS build availability and Android / WebView version
 
 ## Pitfalls to watch
 1. Required input per routine brew must stay < ~10 s
