@@ -40,7 +40,6 @@ one server process, a frontend that stays fast on a ~1 GB RAM Fire 7.
 | DB access | stdlib `sqlite3` + Pydantic models | Few tables, custom sync logic; an ORM adds weight without much payoff |
 | Migrations | Numbered `.sql` files + ~30-line runner (`PRAGMA user_version`) | No Alembic needed for SQLite at this size |
 | Images | Pillow (resize, EXIF rotate, thumbnails) | Already used by the extraction script |
-| Background removal | `rembg` (ONNX Runtime, CPU) for brewer images | Local, no GPU needed; model choice trades size for quality (`u2netp` ~5 MB vs. `isnet-general-use` ~170 MB) |
 | Push | `pywebpush` + VAPID keys | Standard Web Push, works for iOS Home Screen apps and Android |
 | Frontend | Svelte 5 + Vite (plain SPA, no SvelteKit), TypeScript | Compiles to small bundles with no runtime framework weight — matters on the Fire 7 |
 | PWA | `vite-plugin-pwa` (Workbox) | Manifest + service worker with minimal config |
@@ -64,7 +63,6 @@ server/
     models.py          Pydantic schemas per table
     photos.py          upload, resize, thumbnails
     extraction.py      Ollama client (ported from extract_beans.py), job loop
-    restyle.py         brewer image: background removal + house style
     push.py            Web Push subscribe + scheduler
   migrations/0001_init.sql …
   tests/
@@ -74,7 +72,8 @@ web/
     lib/db/            IndexedDB schema, outbox, sync client
     lib/domain/        derived values: grams / cups left, rest status, temp band
     lib/search/        normalize, alias expansion, fuzzy match, filter query object
-    lib/icons/         method SVG icons
+    lib/icons/         method SVG icons (24px line)
+    lib/illustrations/ brewer SVG illustrations (agent-generated at dev time) + manifest
     layouts/           PhoneShell.svelte, StationShell.svelte
     routes/            screens (see §7)
     components/        steppers, chips, stars, timer, photo tile …
@@ -101,11 +100,11 @@ Conventions for every **synced** table:
 | `coffee` | roaster_id, name, origin, producer, variety, process, roast_level, altitude, tasting_notes (JSON, raw text), flavor_tags (JSON, controlled vocabulary), notes | Re-buys share a coffee |
 | `bag` | coffee_id, roast_date, weight_g, price, purchased_at, review_state (`needs_review` / `reviewed`) | Status and grams are **derived** |
 | `bag_event` | bag_id, kind (`opened` `frozen` `thawed` `finished` `adjust`), grams_delta, at, user_id | Append-only |
-| `photo` | bag_id / brewer_id, kind (`bag` / `brewer_original` / `brewer_image`), source_photo_id?, style_version?, sha256, width, height, uploaded (bool) | File on disk keyed by id; `brewer_image` is generated server-side from a `brewer_original` |
+| `photo` | bag_id, sha256, width, height, uploaded (bool) | File on disk keyed by id |
 | `extraction` | bag_id, model, prompt_version, status, raw (JSON), error, corrected_fields (JSON) | Written by server worker; corrections set at review |
 | `alias` | kind (`process` `variety` `origin` `roaster`), alias, canonical | Seeded (Gesha = Geisha …) |
 | `grinder` | name, setting_hint | |
-| `brewer` | name, method, filter, image_id? | `method` ∈ `pour_over` `switch` `aeropress` `espresso` `siphon` `other` |
+| `brewer` | name, method, filter, illustration? | `illustration` = key of a bundled SVG (e.g. `pour_over_cone`) | `method` ∈ `pour_over` `switch` `aeropress` `espresso` `siphon` `other` |
 | `recipe` | root_id, version, name, method, brewer_id?, grinder_id?, dose_g?, water_g?, yield_g?, temp_c?, grind_setting?, steps (JSON), note, author_id | **Immutable rows**; edit = insert new version |
 | `brew` | bag_id, brewer_user_id, method, brewer_id?, grinder_id?, grind_setting?, dose_g?, water_g?, yield_g?, temp_c?, time_s?, laps (JSON), extras (JSON), recipe_id?, recipe_version?, started_from (`brew_again` `recipe` `freestyle`), brewed_at, note | Snapshot of what was actually used |
 | `brew_taster` | brew_id, user_id | Who's drinking → pending cards / push |
@@ -161,12 +160,6 @@ Single household, mostly append-only data → a small hand-rolled protocol.
 - Review saves the coffee fields and `corrected_fields` (fields the user changed); VLM output never writes to `coffee` directly
 - `tools/extract_beans.py` stays as the offline eval harness; reviewed bags become ground truth later
 
-**Brewer image restyle**
-- Uploaded `brewer_original` → job in the same worker loop: `rembg` cut-out → crop to subject, center on a square transparent canvas with even padding → house style in Pillow (grayscale + duotone tint from the theme tokens, light edge cleanup) → 512px WebP with alpha + thumb
-- Result is a new `photo` row (`brewer_image`, `source_photo_id`, `style_version`); syncs to clients for a before/after preview → keep (sets `brewer.image_id`) or retake
-- Bumping `style_version` re-runs the style over every kept original — all brewers stay consistent
-- Fallback if the cut-out is poor: retake against a plain background, or stay with the method icon
-
 **Push scheduler**
 - On push of a `brew` + `brew_taster` rows, create `push_job` per taster with a subscription: `due_at = brewed_at + push_delay` (setting, default 5 min)
 - Loop every 30 s: send due jobs where that taster has no tasting for that brew yet; mark sent
@@ -218,7 +211,13 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 
 **Station behaviors**: idle after 2 min → dim clock + brewer avatar + pending count; first tap only wakes. Wake Lock during a brew and 10 min after Done. Taps only, double taps within 300 ms ignored, undo toasts (5 s) instead of confirms. Sync dot in the header, never a blocking modal (except storage full).
 
-**Method icons**: no open-license icon set covers all five methods (searched; available sets are paid or per-icon licensed). Plan: a custom 24×24 single-stroke SVG set — pour-over cone, Switch (cone on base with valve), AeroPress (chamber + plunger), espresso (portafilter), siphon (two globes on stand), plus a generic cup for Other — inline, `stroke="currentColor"`, ~1 KB each. Brewers show their method icon by default; an optional brewer image restyled from your own photo (see §6) replaces it when set.
+**Method icons**: no open-license icon set covers all five methods (searched; available sets are paid or per-icon licensed). Plan: a custom 24×24 single-stroke SVG set — pour-over cone, Switch (cone on base with valve), AeroPress (chamber + plunger), espresso (portafilter), siphon (two globes on stand), plus a generic cup for Other — inline, `stroke="currentColor"`, ~1 KB each.
+
+**Brewer illustrations** (generated by an agent during development, not at runtime):
+- One SVG per brewer type owned today: pour-over drippers (one per dripper shape), Hario Switch, AeroPress, espresso machine, siphon
+- House style defined once and written into `lib/illustrations/STYLE.md` so later additions match: flat shapes, 2–3 fills from CSS variables (`--ill-fg`, `--ill-accent`, `--ill-bg`), no gradients or text, 256×256 viewBox, ≤ 6 KB each
+- `manifest.json` maps keys → method + display name; settings shows them as a picker per brewer
+- Review loop: render all illustrations side by side in light and dark themes (a dev-only gallery page / Playwright screenshot), adjust, commit
 
 ## 8. Milestones
 
@@ -239,7 +238,8 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 - Exit: add every bag currently on the shelf through the app
 
 **M2 — Brewing (L)**
-- Settings → Equipment & recipes: grinders, brewers (method icons drawn in-house, optional restyled image from your photo), recipes (versioned in data, loose steps)
+- Settings → Equipment & recipes: grinders, brewers (method icons + brewer illustration picker), recipes (versioned in data, loose steps)
+- Generate the icon set and brewer illustrations; review in the dev gallery
 - Brew from a bag: Brew again / Recipe… / freestyle, pre-start screen, timer, espresso preset, Done · drinkers (prefilled), Save as recipe; grams auto-decrement
 - Station shell: brewer avatar, ↻ shortcuts, idle screen, wake lock, sync dot
 - Exit: log every brew for a week from both phone and station
@@ -273,12 +273,13 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 | iOS evicts local data | Home Screen install + `navigator.storage.persist()`; server is the real copy after every sync |
 | Sync bugs lose data | Idempotent ops, outbox never deleted until acked, server tests first, nightly backups |
 | VLM slow on the server | Queue is async; bag is usable before extraction finishes |
-| Brewer cut-outs look rough (glass siphon, clear AeroPress) | Try the larger rembg model; retake on a plain background; method icon as fallback |
+| Generated illustrations look inconsistent | One written style guide + side-by-side gallery review; regenerate outliers |
 | Device bypasses UniFi DNS | DNS-only Cloudflare record pointing to the LAN IP |
 | Scope creep into insights | Phase 3 only after a month of real data |
 
 ## 11. Open questions for the plan
 
-- Brewer image house style: pick between 2–3 treatments (e.g. duotone cut-out, plain grayscale cut-out) once real photos exist
+- Which pour-over drippers you own (one illustration per dripper shape, e.g. cone / flat-bottom / wave)
+- Illustration house style: review 2–3 directions in the gallery before generating the full set
 
-Decided: Svelte 5; Docker Compose for deploy; method icons drawn in-house (M2); brewer images restyled from your own photos (M2); UX review folded in (`docs/UX_REVIEW.md`), with these deviations from it: all detail scales stay 1–5 (words at 1 / 3 / 5) and ship in M3; no `temp_band_touched`; brewer images kept.
+Decided: Svelte 5; Docker Compose for deploy; method icons drawn in-house (M2); brewer pictures are agent-generated SVG illustrations at dev time (M2), runtime photo restyling deferred; UX review folded in (`docs/UX_REVIEW.md`), with these deviations from it: all detail scales stay 1–5 (words at 1 / 3 / 5) and ship in M3; no `temp_band_touched`; brewer images kept.

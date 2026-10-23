@@ -110,9 +110,11 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - **Method** — fixed list with an icon each: Pour-over, Hario Switch, AeroPress, Espresso, Siphon, Other
   - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name, method, filter as free text
   - Icons: no open-license set covers all five methods → small custom line-icon SVG set drawn in-house (inline, `currentColor`, works in dark theme); brewers show their method icon by default
-  - Optional brewer image for aesthetics: **restyled from your own photo** so every brewer matches, not a raw snapshot; replaces the icon when set
-    - Snap the brewer on the phone → server removes the background, centers it on a square transparent canvas, applies one house style (e.g. monochrome / duotone tinted to the theme)
-    - Preview before/after, keep or retake; the original is kept so all images can be regenerated if the style changes
+  - Brewer pictures: **illustrations created by an agent at development time** for the equipment owned today (Pour-over drippers, Hario Switch, AeroPress, Espresso, Siphon), in one consistent house style
+    - Shipped as static SVG assets with the app (theme colors via CSS variables, dark-theme friendly, small, offline)
+    - A brewer picks its illustration in settings; falls back to the method icon
+    - New equipment later = generate another illustration in the same style during development
+    - Restyling your own photos at runtime is deferred (out of scope for now)
 - **Recipe** — links to a method, optionally a specific brewer and a grinder; loosely structured to start:
   - Optional core fields: dose, water / yield, temp, grind setting (with its grinder)
   - Steps as free text or a simple list — each step may carry a time, a weight, both, or neither
@@ -179,7 +181,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
 ## Data model (decide early)
 - `Roaster → Coffee → Bag → Brew → Tasting` (re-buys link to the same Coffee)
 - All entities: client-generated UUID, `created_at`, `updated_at`, `deleted_at` (tombstone)
-- `Grinder`, `Brewer` (`method` enum, filter, optional image), `Recipe` (versioned; `method`, optional `brewer_id` / `grinder_id`, optional core params, `steps` as text or JSON list, note, `author_id`)
+- `Grinder`, `Brewer` (`method` enum, filter, optional `illustration` key), `Recipe` (versioned; `method`, optional `brewer_id` / `grinder_id`, optional core params, `steps` as text or JSON list, note, `author_id`)
 - Brew stores a **snapshot** of params (+ `recipe_id` / version for provenance, null for freestyle)
 - Brew params: typed core, all optional except method (brewer, dose, water/yield, time, temp, grinder + setting as string) + JSON for method-specific extras
 - `User`: name, avatar/color; no credentials
@@ -192,7 +194,8 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
 
 ## Out of scope (for now)
 Bluetooth scales, water chemistry, social sharing, roaster databases, barcode scanning (QR → roaster URL maybe later),
-native app shell / iOS Live Activities, enforced rating windows, remote sync over VPN.
+native app shell / iOS Live Activities, enforced rating windows, remote sync over VPN,
+runtime restyling of brewer photos (background removal).
 
 ## Pitfalls to watch
 1. Required input per routine brew must stay < ~10 s
