@@ -110,7 +110,9 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - **Method** — fixed list with an icon each: Pour-over, Hario Switch, AeroPress, Espresso, Siphon, Other
   - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name, method, filter as free text
   - Icons: no open-license set covers all five methods → small custom line-icon SVG set drawn in-house (inline, `currentColor`, works in dark theme); brewers show their method icon by default
-  - Optional brewer image for aesthetics: a prepared picture in a consistent style (plain / transparent background), not a raw snapshot; replaces the icon when set
+  - Optional brewer image for aesthetics: **restyled from your own photo** so every brewer matches, not a raw snapshot; replaces the icon when set
+    - Snap the brewer on the phone → server removes the background, centers it on a square transparent canvas, applies one house style (e.g. monochrome / duotone tinted to the theme)
+    - Preview before/after, keep or retake; the original is kept so all images can be regenerated if the style changes
 - **Recipe** — links to a method, optionally a specific brewer and a grinder; loosely structured to start:
   - Optional core fields: dose, water / yield, temp, grind setting (with its grinder)
   - Steps as free text or a simple list — each step may carry a time, a weight, both, or neither
