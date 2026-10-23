@@ -72,8 +72,10 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Phase 2 — Brew log + rating
 - Equipment, added from settings (one grinder today, more later):
   - **Grinder**: name, setting format hint (numbers, clicks, `2.3.1`…)
-  - **Method**: name + kind (pour-over / immersion / espresso / other), brewer, filter as free text
-- **Recipe** — links to a method and (optionally) a grinder; loosely structured to start:
+  - **Method** — fixed list with an icon each: Pour-over, Hario Switch, AeroPress, Espresso, Siphon, Other
+  - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name, method, filter as free text, optional photo of the real thing
+  - Icons: no open-license set covers all five methods → small custom line-icon SVG set (inline, `currentColor`, works in dark theme); brewer photo overrides the icon when present
+- **Recipe** — links to a method, optionally a specific brewer and a grinder; loosely structured to start:
   - Optional core fields: dose, water / yield, temp, grind setting (with its grinder)
   - Steps as free text or a simple list — each step may carry a time, a weight, both, or neither
   - "Freestyle" is a valid recipe: method + grinder + a note, nothing else required
@@ -113,9 +115,9 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Data model (decide early)
 - `Roaster → Coffee → Bag → Brew → Tasting` (re-buys link to the same Coffee)
 - All entities: client-generated UUID, `created_at`, `updated_at`, `deleted_at` (tombstone)
-- `Grinder`, `Method`, `Recipe` (versioned; `method_id`, optional `grinder_id`, optional core params, `steps` as text or JSON list, note, `author_id`)
+- `Grinder`, `Brewer` (`method` enum, filter, photo), `Recipe` (versioned; `method`, optional `brewer_id` / `grinder_id`, optional core params, `steps` as text or JSON list, note, `author_id`)
 - Brew stores a **snapshot** of params (+ `recipe_id` / version for provenance, null for freestyle)
-- Brew params: typed core, all optional except method (dose, water/yield, time, temp, grinder + setting as string) + JSON for method-specific extras
+- Brew params: typed core, all optional except method (brewer, dose, water/yield, time, temp, grinder + setting as string) + JSON for method-specific extras
 - `User`: name, avatar/color; no credentials
 - Brew: `brewer_id` (user); `BrewTaster` join (brew × user) for who's drinking → drives pending cards
 - Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` + `temp_band_suggested` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), compass, tags, note
