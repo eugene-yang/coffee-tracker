@@ -1,6 +1,6 @@
 # UX Review — Coffee Tracker (draft, against SCOPE.md / PLAN.md as of 2026-10-23)
 
-Not yet folded into SCOPE.md / PLAN.md — decisions pending.
+Folded into SCOPE.md / PLAN.md. Deviations: detail scales stay 1–5 (words at 1 / 3 / 5) and ship in M3; no `temp_band_touched`; brewer images kept (prepared pictures).
 
 ## 1. Top 5 recommendations
 

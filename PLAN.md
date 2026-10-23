@@ -70,7 +70,8 @@ web/
   package.json, vite.config.ts
   src/
     lib/db/            IndexedDB schema, outbox, sync client
-    lib/domain/        derived values: grams left, rest status, temp band
+    lib/domain/        derived values: grams / cups left, rest status, temp band
+    lib/search/        normalize, alias expansion, fuzzy match, filter query object
     lib/icons/         method SVG icons
     layouts/           PhoneShell.svelte, StationShell.svelte
     routes/            screens (see §7)
@@ -98,24 +99,25 @@ Conventions for every **synced** table:
 | `coffee` | roaster_id, name, origin, producer, variety, process, roast_level, altitude, tasting_notes (JSON, raw text), flavor_tags (JSON, controlled vocabulary), notes | Re-buys share a coffee |
 | `bag` | coffee_id, roast_date, weight_g, price, purchased_at, review_state (`needs_review` / `reviewed`) | Status and grams are **derived** |
 | `bag_event` | bag_id, kind (`opened` `frozen` `thawed` `finished` `adjust`), grams_delta, at, user_id | Append-only |
-| `photo` | bag_id / brewer_id, sha256, width, height, uploaded (bool) | File on disk keyed by id |
+| `photo` | bag_id / brewer_id, kind (`bag` / `brewer_image`), sha256, width, height, uploaded (bool) | File on disk keyed by id |
 | `extraction` | bag_id, model, prompt_version, status, raw (JSON), error, corrected_fields (JSON) | Written by server worker; corrections set at review |
 | `alias` | kind (`process` `variety` `origin` `roaster`), alias, canonical | Seeded (Gesha = Geisha …) |
 | `grinder` | name, setting_hint | |
-| `brewer` | name, method, filter, photo_id | `method` ∈ `pour_over` `switch` `aeropress` `espresso` `siphon` `other` |
+| `brewer` | name, method, filter, image_id? | `method` ∈ `pour_over` `switch` `aeropress` `espresso` `siphon` `other` |
 | `recipe` | root_id, version, name, method, brewer_id?, grinder_id?, dose_g?, water_g?, yield_g?, temp_c?, grind_setting?, steps (JSON), note, author_id | **Immutable rows**; edit = insert new version |
-| `brew` | bag_id, brewer_user_id, method, brewer_id?, grinder_id?, grind_setting?, dose_g?, water_g?, yield_g?, temp_c?, time_s?, laps (JSON), extras (JSON), recipe_id?, recipe_version?, brewed_at, note | Snapshot of what was actually used |
+| `brew` | bag_id, brewer_user_id, method, brewer_id?, grinder_id?, grind_setting?, dose_g?, water_g?, yield_g?, temp_c?, time_s?, laps (JSON), extras (JSON), recipe_id?, recipe_version?, started_from (`brew_again` `recipe` `freestyle`), brewed_at, note | Snapshot of what was actually used |
 | `brew_taster` | brew_id, user_id | Who's drinking → pending cards / push |
-| `tasting` | brew_id, taster_id, rated_at, minutes_after_brew, temp_band, temp_band_suggested, overall, aroma, acidity, sweetness, body, aftertaste, balance, cleanness, compass_sour_bitter, compass_weak_strong, tags (JSON), note, schema_version | Many per brew |
+| `tasting` | brew_id, taster_id, rated_at, minutes_after_brew, temp_band, temp_band_suggested, overall, aroma, acidity, sweetness, body, aftertaste, balance, cleanness, compass_sour_bitter, compass_weak_strong, tags (JSON: `[{tag, source: roaster | tasted}]`), note, schema_version | Many per brew; all scales 1–5 |
 
 Server-only (not synced): `applied_op` (op_id, applied_at), `push_subscription` (user_id, endpoint, keys, device_label), `push_job` (brew_id, user_id, due_at, sent_at), `meta` (seq counter).
 
 `steps` JSON shape (loose on purpose): `[{ "label": "Bloom", "at_s": 0, "to_g": 50, "note": "" }, …]` — every field optional; free text recipes use a single `note` step.
 
 **Derived values** (computed client-side from synced rows, never stored):
-- grams left = `weight_g` − Σ `brew.dose_g` + Σ `bag_event.grams_delta`
+- grams left = `weight_g` − Σ `brew.dose_g` + Σ `bag_event.grams_delta`; shown as cups left = grams ÷ last dose
 - bag status = latest of `opened` / `frozen` / `thawed` / `finished` (none → Resting)
 - effective age = days off roast minus frozen intervals
+- freshness zone (resting / peak / fading) = effective age vs. rest window of the bag's last-used method
 - suggested temp band = `minutes_after_brew` vs. thresholds setting
 
 ## 5. Sync protocol
@@ -173,36 +175,42 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 
 ## 7. Frontend
 
-**Screens**
-| Route | Purpose |
-|---|---|
-| `/` | Home: pending tastings, Brew again shortcuts, recent brews |
-| `/inventory` | Bag tiles: photo, days off roast, rest color, grams left |
-| `/bag/:id` | Bag detail, events (open / freeze / finish / adjust), brews |
-| `/capture` | Snap 1–3 photos → creates bag in *Needs review* |
-| `/review/:bagId` | Photos side by side with suggested fields, autocomplete + aliases |
-| `/brew/new` | Who's brewing → bag → method/brewer → Brew again / recipe / freestyle |
-| `/brew/:id` | Live brew: steppers, timer with cues or stopwatch, Done → who's drinking |
-| `/rate/:brewId` | Screen 1 (stars + temp), "More detail", "Rate again as it cools" |
-| `/history` | Brews and tastings, per user filter |
-| `/recipes` | Recipe list, versions, create from a past brew |
-| `/settings` | Users, grinders, brewers, thresholds, push, layout override, sync status |
+**Screens** (7, after the UX review — `docs/UX_REVIEW.md`)
+| Route | Phone | Station |
+|---|---|---|
+| `/` | Home: pending tastings with inline stars + temp chip → Brew again cards (max 3) → Recent | Redirects to `/inventory` |
+| `/inventory` | List (80pt rows), sections, docked search, filter chips | Home: header (brewer avatar, flavor chips, More, Sort, sync dot) → ↻ Brew again shortcuts → grid → pending strip |
+| `/bag/:id` | Bag detail incl. review state ("Looks right"), events, brews & ratings, coffee fields | 360px side panel over the grid: Brew again, Recipe…, Open / Freeze / Finish, ±g |
+| `/capture` | Camera immediately, up to 3 shots, background save | — |
+| `/brew/:id` | Pre-start (chips + params summary) → live timer → Done · drinkers (prefilled) → "Save as recipe" | Same, full screen, 160px timer |
+| `/rate/:brewId` | More detail (compass, tags, note, profile, quality) | Same, opened from the stars sheet |
+| `/settings` | Users, Equipment & recipes (grinders, brewers, recipes), thresholds, push, layout, sync | Users, sync, layout, thresholds (opened from the sync dot) |
 
-**Layouts**: `StationShell` (landscape, inventory + brew focused, ≥64 px targets) vs. `PhoneShell` (bottom tabs). Picked by viewport (≥ 900 px wide and landscape → station) with a per-device override in local storage. Screens are shared; shells differ.
+**Layouts**: `StationShell` (landscape, header 56 / shortcuts 80 / grid + side panel, 72px primary targets) vs. `PhoneShell` (bottom tabs Home · Inventory · Brew · Settings). Picked by viewport (≥ 900 px wide and landscape → station) with a per-device override in local storage. Screens are shared; shells differ.
 
 **Data layer**: Svelte stores read from IndexedDB; all writes through `mutate()`. Screens never call the network directly.
 
-**Inventory performance** (most-used screen):
+**Inventory** (most-used screen):
 - Whole inventory lives in IndexedDB and in memory (hundreds of bags, not thousands) → search, filter, sort are synchronous, no network, no spinners
-- Search index built in memory at startup over roaster, coffee name, origin, process, variety, flavor tags (incl. aliases)
-- Thumbnails pre-generated server-side (small WebP), cached cache-first by the service worker → tiles render instantly offline
-- Finished bags excluded from the default view but searchable
+- Search index built in memory over roaster, name, origin + region, producer, variety, process, flavor tags, roaster notes, my notes
+  - Normalize: lowercase, strip accents, expand aliases both ways; per-token prefix match, AND across tokens, edit distance 1 for tokens ≥ 5 chars
+  - Rank: roaster/name prefix > other field > fuzzy; the matched field fills the tile's reserved line
+  - Runs on every keystroke, no debounce
+- Filters + sort + search are one query object `{text, families, process, origin, roaster, roast_level, state, min_rating, sort}` → reused by Phase 4
+- Rendering on the Fire 7:
+  - Thumbnails pre-generated server-side (240px WebP, ~10 KB), cached cache-first by the service worker; the station never caches full-size photos
+  - `loading=lazy decoding=async`, fixed aspect ratio, `content-visibility:auto` + `contain-intrinsic-size` on tiles
+  - Tiles are keyed and stay mounted; filtering toggles `hidden` instead of re-rendering
+  - Derived values and sort keys recomputed only after a sync batch or local write, not per render
+  - No shadows, blur or transitions
 
 **Timer**: state is start timestamps + laps persisted in IndexedDB → survives lock, reload, app switch. Wake Lock while `/brew/:id` is open, re-acquired on `visibilitychange`. Audio cue via a pre-unlocked `AudioContext` (Start tap) + visual flash.
 
-**Current user**: per-device default stored locally; station asks "who's brewing?" (chips, remembers last).
+**Current user**: per-device default stored locally; station shows a sticky brewer avatar in the header (remembers last). Drinkers at Done are prefilled from this brewer's last brew.
 
-**Method icons**: no open-license icon set covers all five methods (searched; available sets are paid or per-icon licensed). Plan: a custom 24×24 single-stroke SVG set — pour-over cone, Switch (cone on base with valve), AeroPress (chamber + plunger), espresso (portafilter), siphon (two globes on stand), plus a generic cup for Other — inline, `stroke="currentColor"`, ~1 KB each. A brewer's own photo replaces the icon on tiles when set.
+**Station behaviors**: idle after 2 min → dim clock + brewer avatar + pending count; first tap only wakes. Wake Lock during a brew and 10 min after Done. Taps only, double taps within 300 ms ignored, undo toasts (5 s) instead of confirms. Sync dot in the header, never a blocking modal (except storage full).
+
+**Method icons**: no open-license icon set covers all five methods (searched; available sets are paid or per-icon licensed). Plan: a custom 24×24 single-stroke SVG set — pour-over cone, Switch (cone on base with valve), AeroPress (chamber + plunger), espresso (portafilter), siphon (two globes on stand), plus a generic cup for Other — inline, `stroke="currentColor"`, ~1 KB each. Brewers show their method icon by default; an optional prepared brewer image (consistent style, plain / transparent background) replaces it when set.
 
 ## 8. Milestones
 
@@ -216,17 +224,22 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 - Exit: create a user offline on the phone, see it on the tablet after sync
 
 **M1 — Inventory (L)**
-- Capture → photo blobs → upload → extraction worker → review screen → inventory tiles
-- Roaster / coffee / bag / bag_event / photo / extraction / alias tables; derived grams + rest status
+- Capture → photo blobs → upload → extraction worker → review inside bag detail → inventory
+- Roaster / coffee / bag / bag_event / photo / extraction / alias tables; derived grams / cups + freshness
+- Inventory browsing in full: sections, sort, search (normalize, aliases, fuzzy), filter chips + More sheet, phone list + station grid, side panel
+- Controlled flavor vocabulary (families → tags) seeded
 - Exit: add every bag currently on the shelf through the app
 
 **M2 — Brewing (L)**
-- Settings: grinders, brewers (with icons / photos), recipes (versioned, loose steps)
-- Brew flow: who's brewing, Brew again, from recipe, freestyle, timer, Done → who's drinking; grams auto-decrement
+- Settings → Equipment & recipes: grinders, brewers (method icons drawn in-house, optional prepared image), recipes (versioned in data, loose steps)
+- Brew from a bag: Brew again / Recipe… / freestyle, pre-start screen, timer, espresso preset, Done · drinkers (prefilled), Save as recipe; grams auto-decrement
+- Station shell: brewer avatar, ↻ shortcuts, idle screen, wake lock, sync dot
 - Exit: log every brew for a week from both phone and station
 
 **M3 — Rating (M)**
-- Rating screen 1 (stars + preselected temp), More detail, multiple tastings per brew, pending tasting cards per user
+- Inline stars + temp chip on pending cards (phone home, station pending strip + stars sheet)
+- Full More detail: compass, tags (roaster-notes confirm chips), note, profile and quality scales (1–5, words at 1 / 3 / 5)
+- Rate again as it cools (band change brings the card back; 5-min edit window)
 - Exit: every brew gets at least an overall rating from each drinker
 
 **M4 — Push + hardening (M)**
@@ -240,7 +253,7 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 ## 9. Testing
 
 - **Server (pytest)**: sync idempotency (same ops twice), field-level merge, tombstones, pull pagination, derived-value fixtures, extraction with a stubbed Ollama
-- **Client (Vitest)**: outbox + rebase, derived values (grams, rest status, temp band), mutate → op shape
+- **Client (Vitest)**: outbox + rebase, derived values (grams, cups, freshness, temp band), mutate → op shape, search (accents, aliases, typos, ranking)
 - **E2E (Playwright, Chromium already installed in dev env)**: offline flow — `context.setOffline(true)`, brew + rate, go online, assert server state; two browser contexts as phone + station
 - **Device checklist per milestone**: install, offline launch, wake lock, timer through screen lock, photo capture (iPhone + Android)
 
@@ -258,5 +271,6 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 ## 11. Open questions for the plan
 
 - Svelte vs. Preact — Svelte proposed for bundle size; Preact if you'd rather stay closer to React
+- Brewer images: where the prepared pictures come from (a curated set vs. restyling your own photos)
 
-Decided: Docker Compose for deploy; method icons drawn in-house (M2).
+Decided: Docker Compose for deploy; method icons drawn in-house (M2); UX review folded in (`docs/UX_REVIEW.md`), with these deviations from it: all detail scales stay 1–5 (words at 1 / 3 / 5) and ship in M3; no `temp_band_touched`; brewer images kept.
