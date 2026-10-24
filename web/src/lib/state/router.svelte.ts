@@ -20,6 +20,12 @@ export function navigate(path: string): void {
   window.scrollTo(0, 0)
 }
 
+/** Change the URL without a new history entry (e.g. once a screen's record has an id). */
+export function replace(path: string): void {
+  history.replaceState(null, '', href(path))
+  route.path = path
+}
+
 export function startRouter(): void {
   window.addEventListener('popstate', () => (route.path = toAppPath(window.location.pathname)))
   document.addEventListener('click', (e) => {

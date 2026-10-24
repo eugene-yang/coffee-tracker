@@ -258,6 +258,11 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 - Full More detail: compass, tags (roaster-notes confirm chips), note, profile and quality scales (1–5, words at 1 / 3 / 5)
 - Rate again as it cools (band change brings the card back; 5-min edit window)
 - Exit: every brew gets at least an overall rating from each drinker
+- As built (`web/src/lib/domain/tasting.ts`):
+  - A card is *new* (unrated, up to 12 h after brewing) → *editing* (5 min from the tasting's `rated_at`; stars and chip update that tasting) → *waiting* (muted, "Rate again when Warm") → *again* when the suggested band passes the band the taster **chose** ("Warm now · 18 min"); re-rate prompts stop 2 h after brewing or after a Cool tasting
+  - More detail binds to one tasting (`/rate/:brewId/:userId/:tastingId`), so a long detail session never splits; without an id the first star starts a new tasting. Detail controls stay disabled until there's an overall score
+  - Compass is stored 1–5 like every scale (3 = balanced) and shows a dial-in hint; tag `source` is `roaster` when the coffee's roaster notes list the tag, else `tasted`
+  - Station: inline stars + chip per person in the pending strip (toast with undo); avatar → stars sheet (name at 32px, closes 1.5 s after a star). Notes are typed on the phone only
 
 **M4 — Push + hardening (M)**
 - Web Push subscribe + scheduler; backups + restore test; sync edge cases (long offline, many photos)

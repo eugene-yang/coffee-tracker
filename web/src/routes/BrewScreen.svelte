@@ -144,7 +144,7 @@
   <div class="stack saved">
     <h2>Saved</h2>
     <p class="big">{view.title}</p>
-    <p class="muted">Rating comes later, once the cup has cooled a little.</p>
+    <p class="muted">Rate it once it has cooled a little — it waits {layout === 'station' ? 'in the strip under the beans' : 'on Home'}.</p>
     {#if lastEspresso}
       <button class="primary huge" onclick={pullAnother}>Pull another</button>
     {/if}

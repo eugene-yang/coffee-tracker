@@ -11,6 +11,7 @@
   import Settings from './routes/Settings.svelte'
   import Equipment from './routes/Equipment.svelte'
   import BrewScreen from './routes/BrewScreen.svelte'
+  import Rate from './routes/Rate.svelte'
   import { currentLayout } from './lib/state/device.svelte'
   import { route } from './lib/state/router.svelte'
 
@@ -30,6 +31,8 @@
     <BagDetail />
   {:else if section === 'capture'}
     <Capture />
+  {:else if section === 'rate'}
+    <Rate />
   {:else if section === 'brew' && route.path.split('/')[2]}
     <BrewScreen />
   {:else if section === 'brew'}
@@ -44,6 +47,6 @@
 {#if layout === 'station'}
   <StationShell>{@render page()}</StationShell>
 {:else}
-  <PhoneShell section={section === 'bag' || section === 'capture' ? 'inventory' : section}>{@render page()}</PhoneShell>
+  <PhoneShell section={section === 'bag' || section === 'capture' ? 'inventory' : section === 'rate' ? 'home' : section}>{@render page()}</PhoneShell>
 {/if}
 <Toast />
