@@ -169,7 +169,9 @@
     <h2>Sync</h2>
     <div class="card stack">
       <span
-        >{syncState.status === 'offline'
+        >{syncState.status === 'preview'
+          ? 'Preview build — no server; everything stays on this device'
+          : syncState.status === 'offline'
           ? 'Server unreachable — changes are saved on this device'
           : syncState.status === 'syncing'
             ? 'Syncing…'

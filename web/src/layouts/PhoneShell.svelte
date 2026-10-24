@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import SyncDot from '../components/SyncDot.svelte'
+  import { href } from '../lib/state/router.svelte'
 
   let { section, children }: { section: string; children: Snippet } = $props()
 
@@ -21,7 +22,7 @@
   <main>{@render children()}</main>
   <nav aria-label="Sections">
     {#each tabs as tab (tab.key)}
-      <a href={tab.href} class:active={section === tab.key} aria-current={section === tab.key ? 'page' : undefined}
+      <a href={href(tab.href)} class:active={section === tab.key} aria-current={section === tab.key ? 'page' : undefined}
         >{tab.label}</a
       >
     {/each}

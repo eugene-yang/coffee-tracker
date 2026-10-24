@@ -3,10 +3,13 @@
 import { onChange, pendingCount } from '../db/local'
 import { syncOnce } from '../db/sync'
 
-export type SyncStatus = 'synced' | 'pending' | 'syncing' | 'offline'
+export type SyncStatus = 'synced' | 'pending' | 'syncing' | 'offline' | 'preview'
+
+// Preview build (static hosting, no server): everything stays on this device
+export const PREVIEW = import.meta.env.VITE_PREVIEW === '1'
 
 export const syncState = $state({
-  status: 'synced' as SyncStatus,
+  status: (PREVIEW ? 'preview' : 'synced') as SyncStatus,
   pending: 0,
   lastSyncAt: null as string | null,
   error: null as string | null,
@@ -21,12 +24,13 @@ let timer: ReturnType<typeof setTimeout> | undefined
 
 async function refreshPending(): Promise<void> {
   syncState.pending = await pendingCount()
-  if (syncState.status !== 'syncing' && syncState.status !== 'offline') {
+  if (syncState.status !== 'syncing' && syncState.status !== 'offline' && syncState.status !== 'preview') {
     syncState.status = syncState.pending > 0 ? 'pending' : 'synced'
   }
 }
 
 export async function syncNow(): Promise<void> {
+  if (PREVIEW) return
   if (running) {
     again = true
     return

@@ -3,7 +3,11 @@ import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// VITE_BASE lets the preview build live under a subpath (GitHub Pages: /coffee-tracker/)
+const base = process.env.VITE_BASE ?? '/'
+
 export default defineConfig({
+  base,
   plugins: [
     svelte(),
     VitePWA({
@@ -13,7 +17,8 @@ export default defineConfig({
         name: 'Coffee Tracker',
         short_name: 'Coffee',
         description: 'Beans, brews and cups at home',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'any',
         theme_color: '#121212',
@@ -25,8 +30,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallback: `${base}index.html`,
+        navigateFallbackDenylist: [/\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
       },
     }),

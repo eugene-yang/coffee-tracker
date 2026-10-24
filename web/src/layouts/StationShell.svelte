@@ -4,7 +4,7 @@
   import SyncDot from '../components/SyncDot.svelte'
   import { device, setDeviceUser } from '../lib/state/device.svelte'
   import { users } from '../lib/state/live.svelte'
-  import { route } from '../lib/state/router.svelte'
+  import { href, route } from '../lib/state/router.svelte'
 
   let { children }: { children: Snippet } = $props()
 
@@ -21,8 +21,8 @@
       <span>{brewer?.name ?? "Who's brewing?"}</span>
     </button>
     <nav>
-      <a href="/" class:active={!inSettings}>Inventory</a>
-      <a href="/settings" class:active={inSettings}>Settings</a>
+      <a href={href('/')} class:active={!inSettings}>Inventory</a>
+      <a href={href('/settings')} class:active={inSettings}>Settings</a>
     </nav>
     <SyncDot />
   </header>

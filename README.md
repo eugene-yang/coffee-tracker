@@ -41,6 +41,14 @@ cd web && npm run check             # svelte-check / TypeScript
 cd web && npm run e2e               # builds, starts the server, runs Playwright (phone + station)
 ```
 
+## Preview without the home server
+
+`.github/workflows/pages.yml` publishes a static build to GitHub Pages on every push to `main`
+(`https://<user>.github.io/coffee-tracker/`). Preview builds have sync turned off — everything stays on
+the device — so the app can be installed and tried on a phone while away from home. One-time setup:
+repo Settings → Pages → Source: "GitHub Actions". Pages on a private repo needs a paid GitHub plan,
+and the published site is public (it contains only the app, no data).
+
 ## Deployment (home server)
 
 Everything stays on the LAN: Caddy gets a real Let's Encrypt certificate through a Cloudflare DNS

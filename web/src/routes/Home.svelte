@@ -1,6 +1,7 @@
 <script lang="ts">
   import { device } from '../lib/state/device.svelte'
   import { users } from '../lib/state/live.svelte'
+  import { href } from '../lib/state/router.svelte'
 
   const me = $derived(users.get(device.userId))
 </script>
@@ -10,7 +11,7 @@
     <div class="card stack">
       <strong>Welcome</strong>
       <p class="muted">Add yourself so brews and ratings are recorded under your name.</p>
-      <a class="button-link" href="/settings">Set up this device</a>
+      <a class="button-link" href={href('/settings')}>Set up this device</a>
     </div>
   {:else if me}
     <p class="muted">Hi {me.name}.</p>

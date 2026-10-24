@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["svelte", "vite/client", "vite-plugin-pwa/svelte"],
+    "types": ["svelte", "vite/client", "vite-plugin-pwa/svelte", "node"],
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,
