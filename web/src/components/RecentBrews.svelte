@@ -3,12 +3,15 @@
   import MethodIcon from './MethodIcon.svelte'
   import { methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { brews, users } from '../lib/state/live.svelte'
+  import { latestTastings } from '../lib/domain/tasting'
+  import { brews, tastings, users } from '../lib/state/live.svelte'
   import { timeAgo } from '../lib/state/shortcuts.svelte'
 
   let { limit = 8 }: { limit?: number } = $props()
 
   const recent = $derived([...brews.rows].sort((a, b) => b.brewed_at.localeCompare(a.brewed_at)).slice(0, limit))
+  const latest = $derived([...latestTastings(tastings.rows).values()])
+  const ratingsOf = (brewId: string) => latest.filter((t) => t.brew_id === brewId && t.overall)
 </script>
 
 {#each recent as b (b.id)}
@@ -17,6 +20,13 @@
     <span class="text">
       <strong>{inventory.byId.get(b.bag_id)?.title ?? 'Bag'}</strong>
       <span class="muted">{methodLabel(b.method)} · {paramSummary(paramsOf(b))}</span>
+      {#if ratingsOf(b.id).length}
+        <span class="ratings">
+          {#each ratingsOf(b.id) as t (t.id)}
+            <span class="rating" title={users.get(t.taster_id)?.name}><Avatar user={users.get(t.taster_id)} size={18} />★{t.overall}</span>
+          {/each}
+        </span>
+      {/if}
     </span>
     <span class="meta">
       <Avatar user={users.get(b.brewer_user_id)} size={24} />
@@ -44,6 +54,18 @@
   .text .muted,
   .meta .muted {
     font-size: 14px;
+  }
+  .ratings {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+  }
+  .rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent);
+    font-weight: 600;
   }
   .meta {
     display: flex;

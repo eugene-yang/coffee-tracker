@@ -4,11 +4,14 @@
   import { href } from '../lib/state/router.svelte'
   import BrewShortcut from '../components/BrewShortcut.svelte'
   import RecentBrews from '../components/RecentBrews.svelte'
+  import PendingCard from '../components/PendingCard.svelte'
+  import { tastingState } from '../lib/state/tastings.svelte'
   import { shortcutsFor } from '../lib/state/shortcuts.svelte'
 
   const shortcuts = $derived(shortcutsFor())
 
   const me = $derived(users.get(device.userId))
+  const pending = $derived(tastingState.forUser(device.userId))
 </script>
 
 <div class="stack">
@@ -22,9 +25,13 @@
     <p class="muted">Hi {me.name}.</p>
   {/if}
 
-  <section class="stack">
+  <section class="stack" aria-label="Pending tastings">
     <h2>Pending tastings</h2>
-    <p class="muted">Cups waiting for a rating show up here.</p>
+    {#each pending as p (p.key)}
+      <PendingCard {p} />
+    {:else}
+      <p class="muted">Cups you’re drinking show up here to rate.</p>
+    {/each}
   </section>
 
   {#if shortcuts.length}

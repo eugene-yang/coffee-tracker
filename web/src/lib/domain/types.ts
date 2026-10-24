@@ -149,3 +149,32 @@ export interface BrewTaster extends Row {
   brew_id: string
   user_id: string
 }
+
+export type TagSource = 'roaster' | 'tasted'
+
+export interface TastingTag {
+  tag: string // flavor vocabulary id
+  source: TagSource // confirmed from the roaster's notes, or found by the taster
+}
+
+export interface Tasting extends Row {
+  brew_id: string
+  taster_id: string
+  rated_at: string
+  minutes_after_brew: number | null
+  temp_band: 'hot' | 'warm' | 'cool' | null
+  temp_band_suggested: 'hot' | 'warm' | 'cool' | null
+  overall: number | null // 1–5, required in the UI
+  aroma: number | null
+  acidity: number | null
+  sweetness: number | null
+  body: number | null
+  aftertaste: number | null
+  balance: number | null
+  cleanness: number | null
+  compass_sour_bitter: number | null // 1 sour · 3 balanced · 5 bitter
+  compass_weak_strong: number | null // 1 weak · 3 balanced · 5 strong
+  tags: TastingTag[] | null
+  note: string | null
+  schema_version: number | null
+}

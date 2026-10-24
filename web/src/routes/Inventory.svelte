@@ -4,6 +4,7 @@
   import CaptureButton from '../components/CaptureButton.svelte'
   import FilterSheet from '../components/FilterSheet.svelte'
   import BrewShortcut from '../components/BrewShortcut.svelte'
+  import PendingStrip from '../components/PendingStrip.svelte'
   import { shortcutsFor } from '../lib/state/shortcuts.svelte'
   import { FLAVOR_FAMILIES } from '../lib/domain/flavors'
   import {
@@ -194,6 +195,7 @@
         <p class="muted">No bags match these filters.</p>
       {/if}
     {/if}
+    {#if layout === 'station'}<PendingStrip />{/if}
   </div>
 
   {#if layout === 'station' && selectedId && inventory.byId.get(selectedId)}

@@ -5,6 +5,8 @@
   import { brewState } from '../lib/state/brew.svelte'
   import { device } from '../lib/state/device.svelte'
   import { users } from '../lib/state/live.svelte'
+  import { isActionable } from '../lib/domain/tasting'
+  import { tastingState } from '../lib/state/tastings.svelte'
 
   let { idleMs = 120_000 }: { idleMs?: number } = $props()
 
@@ -14,6 +16,7 @@
   let timer: ReturnType<typeof setInterval> | undefined
 
   const brewer = $derived(users.get(device.userId))
+  const toRate = $derived(tastingState.all.filter(isActionable).length)
 
   function activity() {
     last = Date.now()
@@ -51,6 +54,7 @@
       <Avatar user={brewer} size={72} />
       <span>{brewer?.name ?? "Who's brewing?"}</span>
     </div>
+    {#if toRate}<div class="pending">{toRate} cup{toRate === 1 ? '' : 's'} to rate</div>{/if}
     <div class="hint">Tap to start</div>
   </div>
 {/if}
@@ -79,6 +83,10 @@
     align-items: center;
     gap: 16px;
     font-size: 28px;
+  }
+  .pending {
+    font-size: 24px;
+    color: #d39a6a;
   }
   .hint {
     color: #777;

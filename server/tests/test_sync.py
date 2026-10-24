@@ -152,6 +152,25 @@ def test_brew_tables_roundtrip(client):
     assert rows["recipe"]["version"] == 1
 
 
+def test_tasting_roundtrip_and_edit_in_place(client):
+    tid = str(uuid.uuid4())
+    push(client, op(table="tasting", id=tid, brew_id="br1", taster_id="u1", rated_at="2026-10-24T08:12:00.000Z",
+                    minutes_after_brew=12.5, temp_band="warm", temp_band_suggested="warm", overall=4, schema_version=1))
+    # a re-tap within the edit window patches the same row; detail fields merge in
+    push(client, op(table="tasting", id=tid, overall=3, acidity=5, compass_sour_bitter=2,
+                    tags=[{"tag": "blueberry", "source": "roaster"}, {"tag": "jasmine", "source": "tasted"}]))
+    rows = [r["row"] for r in pull(client)["rows"] if r["table"] == "tasting"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert (row["overall"], row["acidity"], row["temp_band"], row["minutes_after_brew"]) == (3, 5, "warm", 12.5)
+    assert row["tags"][0] == {"tag": "blueberry", "source": "roaster"}
+
+
+def test_tasting_rejects_text_in_a_scale(client):
+    r = client.post("/api/sync/push", json={"ops": [op(table="tasting", overall="great")]}).json()
+    assert r["results"][0]["status"] == "rejected"
+
+
 def test_owned_brewers_are_seeded_once(client):
     rows = [r["row"] for r in pull(client, since=0, limit=2000)["rows"] if r["table"] == "brewer"]
     assert {r["illustration"] for r in rows} == {"v60", "kadou", "switch", "aeropress", "espresso", "siphon"}

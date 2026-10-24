@@ -18,6 +18,7 @@ export const SYNC_TABLES = [
   'recipe',
   'brew',
   'brew_taster',
+  'tasting',
 ] as const
 export type TableName = (typeof SYNC_TABLES)[number]
 
@@ -58,7 +59,7 @@ let clockOffsetMs = 0
 let actorId: () => string | null = () => null
 
 export function initDb(name = 'coffee'): Promise<IDBPDatabase<CoffeeDB>> {
-  dbPromise = openDB<CoffeeDB>(name, 3, {
+  dbPromise = openDB<CoffeeDB>(name, 4, {
     upgrade(db) {
       // Additive: create whatever stores this version knows about and the old one didn't
       const has = (s: string) => db.objectStoreNames.contains(s as never)
@@ -94,7 +95,11 @@ export function emit(table: TableName | 'outbox' | 'photo_blob'): void {
 
 /** Current time corrected by the server clock offset (the station's clock may drift). */
 export function nowIso(): string {
-  return new Date(Date.now() + clockOffsetMs).toISOString()
+  return new Date(nowMs()).toISOString()
+}
+
+export function nowMs(): number {
+  return Date.now() + clockOffsetMs
 }
 
 export async function setClockOffset(serverTime: string): Promise<void> {

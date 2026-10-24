@@ -14,6 +14,7 @@ import type {
   Recipe,
   Roaster,
   Setting,
+  Tasting,
   User,
 } from '../domain/types'
 
@@ -55,6 +56,7 @@ export const brewers = new LiveTable<Brewer>('brewer')
 export const recipes = new LiveTable<Recipe>('recipe')
 export const brews = new LiveTable<Brew>('brew')
 export const brewTasters = new LiveTable<BrewTaster>('brew_taster')
+export const tastings = new LiveTable<Tasting>('tasting')
 
 export function settingValue<T>(id: string, fallback: T): T {
   return (settings.get(id)?.value as T | undefined) ?? fallback
