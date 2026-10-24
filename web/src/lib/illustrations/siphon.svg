@@ -1,0 +1,15 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <ellipse class="sh" cx="124" cy="222" rx="84" ry="9"/>
+  <rect class="d" x="58" y="34" width="12" height="182" rx="4"/>
+  <rect class="d" x="44" y="206" width="104" height="12" rx="4"/>
+  <path class="s" d="M70 76h46M70 150h38"/>
+  <path class="gl" d="M114 34h48v58c0 12-10 20-16 22v22h-16v-22c-6-2-16-10-16-22z"/>
+  <path class="s" d="M114 34h48v58c0 12-10 20-16 22v22h-16v-22c-6-2-16-10-16-22zM110 34h56"/>
+  <path class="s" d="M138 136v14"/>
+  <circle class="gl" cx="138" cy="172" r="32"/>
+  <path class="a" d="M108 180a31 31 0 0 0 60 0z"/>
+  <path class="h" d="M118 156a24 24 0 0 1 10-10" />
+  <circle class="s" cx="138" cy="172" r="32"/>
+  <rect class="d" x="122" y="206" width="32" height="10" rx="3"/>
+  <path class="fl" d="M138 194c-6 4-6 10 0 12 6-2 6-8 0-12z"/>
+</svg>

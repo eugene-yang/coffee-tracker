@@ -1,6 +1,21 @@
 // Reactive views over local tables; reload whenever that table changes (local write or pull).
 import { listRows, onChange, type Row, type TableName } from '../db/local'
-import type { Alias, Bag, BagEvent, Coffee, Extraction, Photo, Roaster, Setting, User } from '../domain/types'
+import type {
+  Alias,
+  Bag,
+  BagEvent,
+  Brew,
+  Brewer,
+  BrewTaster,
+  Coffee,
+  Extraction,
+  Grinder,
+  Photo,
+  Recipe,
+  Roaster,
+  Setting,
+  User,
+} from '../domain/types'
 
 export type { User, Setting } from '../domain/types'
 
@@ -35,6 +50,11 @@ export const bagEvents = new LiveTable<BagEvent>('bag_event')
 export const photos = new LiveTable<Photo>('photo')
 export const extractions = new LiveTable<Extraction>('extraction')
 export const aliases = new LiveTable<Alias>('alias')
+export const grinders = new LiveTable<Grinder>('grinder')
+export const brewers = new LiveTable<Brewer>('brewer')
+export const recipes = new LiveTable<Recipe>('recipe')
+export const brews = new LiveTable<Brew>('brew')
+export const brewTasters = new LiveTable<BrewTaster>('brew_taster')
 
 export function settingValue<T>(id: string, fallback: T): T {
   return (settings.get(id)?.value as T | undefined) ?? fallback

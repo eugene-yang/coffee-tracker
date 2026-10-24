@@ -9,6 +9,7 @@
   import Toast from './components/Toast.svelte'
   import Brew from './routes/Brew.svelte'
   import Settings from './routes/Settings.svelte'
+  import Equipment from './routes/Equipment.svelte'
   import { currentLayout } from './lib/state/device.svelte'
   import { route } from './lib/state/router.svelte'
 
@@ -20,7 +21,9 @@
 </script>
 
 {#snippet page()}
-  {#if section === 'settings'}
+  {#if route.path.startsWith('/settings/equipment')}
+    <Equipment />
+  {:else if section === 'settings'}
     <Settings />
   {:else if section === 'bag'}
     <BagDetail />

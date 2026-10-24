@@ -196,3 +196,13 @@ describe('label parsing', () => {
     expect(canonicalize('Honey', aliases, 'process')).toBe('Honey')
   })
 })
+
+describe('grams used by brews', () => {
+  it('subtracts brew doses and counts cups by the last dose', () => {
+    const [v] = buildBagViews(
+      { bags: [bag('b', { weight_g: 250 })], coffees: [], roasters: [], events: [], photos: [] },
+      { now: NOW, rest: DEFAULT_REST_WINDOW, doseG: 15, usedG: new Map([['b', 200]]), lastDoseG: new Map([['b', 20]]) },
+    )
+    expect(v).toMatchObject({ gramsLeft: 50, cupsLeft: 2, lastCup: false })
+  })
+})

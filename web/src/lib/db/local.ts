@@ -3,7 +3,22 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { uuidv7 } from './uuid'
 
-export const SYNC_TABLES = ['user', 'setting', 'roaster', 'coffee', 'bag', 'bag_event', 'photo', 'extraction', 'alias'] as const
+export const SYNC_TABLES = [
+  'user',
+  'setting',
+  'roaster',
+  'coffee',
+  'bag',
+  'bag_event',
+  'photo',
+  'extraction',
+  'alias',
+  'grinder',
+  'brewer',
+  'recipe',
+  'brew',
+  'brew_taster',
+] as const
 export type TableName = (typeof SYNC_TABLES)[number]
 
 export interface Row {
@@ -43,7 +58,7 @@ let clockOffsetMs = 0
 let actorId: () => string | null = () => null
 
 export function initDb(name = 'coffee'): Promise<IDBPDatabase<CoffeeDB>> {
-  dbPromise = openDB<CoffeeDB>(name, 2, {
+  dbPromise = openDB<CoffeeDB>(name, 3, {
     upgrade(db) {
       // Additive: create whatever stores this version knows about and the old one didn't
       const has = (s: string) => db.objectStoreNames.contains(s as never)

@@ -1,0 +1,17 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <ellipse class="sh" cx="128" cy="222" rx="74" ry="9"/>
+  <rect class="a" x="86" y="40" width="84" height="172" rx="12"/>
+  <rect class="h" x="94" y="48" width="8" height="150" rx="4"/>
+  <rect class="b" x="82" y="32" width="92" height="12" rx="5"/>
+  <circle class="d" cx="110" cy="64" r="6"/>
+  <circle class="d" cx="128" cy="64" r="6"/>
+  <circle class="d" cx="146" cy="64" r="6"/>
+  <rect class="d" x="106" y="96" width="44" height="14" rx="4"/>
+  <path class="d" d="M108 110h40l-5 14h-30z"/>
+  <path class="d" d="M146 113h50a7 7 0 0 1 0 14h-50z"/>
+  <path class="b" d="M114 150h28v20a7 7 0 0 1-7 7h-14a7 7 0 0 1-7-7z"/>
+  <path class="s" d="M142 156h5a6 6 0 0 1 0 12h-5"/>
+  <rect class="d" x="86" y="186" width="84" height="16" rx="4"/>
+  <path class="s" d="M88 80H70v78"/>
+  <path class="s" d="M86 52a12 12 0 0 1 12-12h60a12 12 0 0 1 12 12v148a12 12 0 0 1-12 12H98a12 12 0 0 1-12-12z"/>
+</svg>

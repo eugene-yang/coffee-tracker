@@ -8,7 +8,8 @@ import {
   type SortKey,
 } from '../domain/inventory'
 import { AliasIndex, EMPTY_FILTER, buildIndex, search, type InventoryFilter } from '../domain/search'
-import { aliases, bagEvents, bags, coffees, photos, roasters, settingValue } from './live.svelte'
+import { gramsUsedByBag, lastDoseByBag } from '../domain/brew'
+import { aliases, bagEvents, bags, brews, coffees, photos, roasters, settingValue } from './live.svelte'
 
 export const DOSE_SETTING = 'default_dose_g'
 
@@ -22,7 +23,7 @@ class InventoryState {
   views = $derived(
     buildBagViews(
       { bags: bags.rows, coffees: coffees.rows, roasters: roasters.rows, events: bagEvents.rows, photos: photos.rows },
-      { now: this.now, rest: this.rest, doseG: this.doseG },
+      { now: this.now, rest: this.rest, doseG: this.doseG, usedG: gramsUsedByBag(brews.rows), lastDoseG: lastDoseByBag(brews.rows) },
     ),
   )
   byId = $derived(new Map(this.views.map((v) => [v.id, v])))
