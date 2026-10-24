@@ -8,8 +8,10 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
 
 def connect(path: Path) -> sqlite3.Connection:
-    # One connection per request; WAL lets readers run alongside the single writer
-    conn = sqlite3.connect(path, isolation_level=None, timeout=10)
+    # One connection per request; WAL lets readers run alongside the single writer.
+    # FastAPI may open and close a request's connection on different threadpool threads
+    # (it's never used concurrently), so the same-thread check has to be off.
+    conn = sqlite3.connect(path, isolation_level=None, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")

@@ -99,6 +99,24 @@ def ollama_extractor(cfg: ExtractionConfig) -> Extractor:
     return extract
 
 
+def fake_extractor(images: list[str]) -> dict:
+    """Fixed answer for end-to-end tests and demos (COFFEE_EXTRACTION=fake)."""
+    return {
+        "roaster": "Onyx Coffee Lab",
+        "coffee_name": "Kii AA",
+        "origin": "Kenya, Nyeri",
+        "producer": "Kii Factory",
+        "variety": "SL28, SL34",
+        "process": "fully washed",
+        "roast_level": "light roast",
+        "altitude": "1700-1800 masl",
+        "tasting_notes": ["Blackcurrant", "Grapefruit", "Molasses"],
+        "roast_date": "03.10.2026",
+        "weight": "250g",
+        "other_notes": "",
+    }
+
+
 def enqueue_ready(conn: sqlite3.Connection, settle_s: int) -> list[str]:
     """Queue an extraction for bags needing review whose uploaded photos have settled."""
     cutoff = (datetime.now(UTC) - timedelta(seconds=settle_s)).isoformat(timespec="milliseconds").replace("+00:00", "Z")

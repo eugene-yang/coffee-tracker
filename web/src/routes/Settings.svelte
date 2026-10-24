@@ -8,7 +8,9 @@
     clampThresholds,
     type TempBandThresholds,
   } from '../lib/domain/tempBand'
+  import { DEFAULT_DOSE_G, DEFAULT_REST_WINDOW, REST_WINDOW_SETTING, type RestWindow } from '../lib/domain/inventory'
   import { device, setDeviceUser, setLayoutChoice, type LayoutChoice } from '../lib/state/device.svelte'
+  import { DOSE_SETTING } from '../lib/state/inventory.svelte'
   import { settingValue, users } from '../lib/state/live.svelte'
   import { syncNow, syncState } from '../lib/state/sync.svelte'
 
@@ -49,6 +51,15 @@
     await remove('user', id)
     if (device.userId === id) setDeviceUser(null)
     editingId = null
+  }
+
+  const rest = $derived(settingValue<RestWindow>(REST_WINDOW_SETTING, DEFAULT_REST_WINDOW))
+  const dose = $derived(settingValue<number>(DOSE_SETTING, DEFAULT_DOSE_G))
+
+  function stepRest(key: keyof RestWindow, delta: number) {
+    const next = { ...rest, [key]: Math.max(0, rest[key] + delta) }
+    if (next.peak_days <= next.rest_days) next.peak_days = next.rest_days + 1
+    mutate('setting', REST_WINDOW_SETTING, { value: next })
   }
 
   function stepBand(key: keyof TempBandThresholds, delta: number) {
@@ -162,6 +173,28 @@
         </div>
       {/each}
       <span class="muted">Cool after {bands.warm_max_min} min.</span>
+    </div>
+  </section>
+
+  <section class="stack">
+    <h2>Beans</h2>
+    <div class="card stack">
+      <span class="muted">Days off roast for the freshness bar (freezer time doesn't count).</span>
+      {#each [{ key: 'rest_days', label: 'Resting until day' }, { key: 'peak_days', label: 'Peak until day' }] as r (r.key)}
+        {@const key = r.key as keyof RestWindow}
+        <div class="row stepper">
+          <span class="label">{r.label}</span>
+          <button aria-label="{r.label} minus one" onclick={() => stepRest(key, -1)}>−</button>
+          <span class="value">{rest[key]}</span>
+          <button aria-label="{r.label} plus one" onclick={() => stepRest(key, 1)}>+</button>
+        </div>
+      {/each}
+      <div class="row stepper">
+        <span class="label">Usual dose (for “cups left”)</span>
+        <button aria-label="Dose minus one" onclick={() => mutate('setting', DOSE_SETTING, { value: Math.max(1, dose - 1) })}>−</button>
+        <span class="value">{dose} g</span>
+        <button aria-label="Dose plus one" onclick={() => mutate('setting', DOSE_SETTING, { value: dose + 1 })}>+</button>
+      </div>
     </div>
   </section>
 

@@ -31,11 +31,16 @@ def create_app(
     cfg = extraction_config or extraction.ExtractionConfig(
         host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"),
         model=os.environ.get("COFFEE_VLM_MODEL", "qwen3.5:4b"),
+        settle_s=int(os.environ.get("COFFEE_EXTRACTION_SETTLE_S", "10")),
+        poll_s=float(os.environ.get("COFFEE_EXTRACTION_POLL_S", "5")),
     )
     if not cfg.host.startswith("http"):
         cfg.host = f"http://{cfg.host}"
-    # COFFEE_EXTRACTION=off disables the worker (e.g. no Ollama available)
-    worker_enabled = extractor is not None or os.environ.get("COFFEE_EXTRACTION", "on") != "off"
+    # COFFEE_EXTRACTION=off disables the worker (no Ollama); =fake answers with a fixed label (tests)
+    mode = os.environ.get("COFFEE_EXTRACTION", "on")
+    if extractor is None and mode == "fake":
+        extractor, cfg.model = extraction.fake_extractor, "fake"
+    worker_enabled = extractor is not None or mode != "off"
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
