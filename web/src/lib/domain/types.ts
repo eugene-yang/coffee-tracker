@@ -88,3 +88,64 @@ export interface Alias extends Row {
   alias: string
   canonical: string
 }
+
+export interface Grinder extends Row {
+  name: string | null
+  setting_hint: string | null
+}
+
+export interface Brewer extends Row {
+  name: string | null
+  method: string | null
+  filter: string | null
+  illustration: string | null
+}
+
+export interface RecipeStep {
+  label?: string
+  at_s?: number // when the step starts, seconds from Start
+  to_g?: number // pour up to this many grams
+  note?: string
+}
+
+export interface BrewParams {
+  method: string
+  brewer_id: string | null
+  grinder_id: string | null
+  grind_setting: string | null
+  dose_g: number | null
+  water_g: number | null
+  yield_g: number | null
+  temp_c: number | null
+  time_s: number | null
+  steps: RecipeStep[]
+}
+
+export interface Recipe extends Row, Omit<BrewParams, 'steps'> {
+  root_id: string
+  version: number
+  name: string | null
+  steps: RecipeStep[] | null
+  note: string | null
+  author_id: string | null
+}
+
+export type StartedFrom = 'brew_again' | 'recipe' | 'freestyle'
+
+export interface Brew extends Row, Omit<BrewParams, 'steps'> {
+  bag_id: string
+  brewer_user_id: string | null
+  steps: RecipeStep[] | null
+  laps: number[] | null
+  extras: Record<string, unknown> | null
+  recipe_id: string | null
+  recipe_version: number | null
+  started_from: StartedFrom | null
+  brewed_at: string
+  note: string | null
+}
+
+export interface BrewTaster extends Row {
+  brew_id: string
+  user_id: string
+}

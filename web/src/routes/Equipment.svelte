@@ -1,0 +1,252 @@
+<script lang="ts">
+  import BrewerArt from '../components/BrewerArt.svelte'
+  import MethodIcon from '../components/MethodIcon.svelte'
+  import RecipeForm from '../components/RecipeForm.svelte'
+  import { METHODS, defaultParams, latestRecipes, methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import type { Brewer, Grinder } from '../lib/domain/types'
+  import { deleteRecipe, recipeEditedLabel, removeEquipment, saveBrewer, saveGrinder } from '../lib/equipment'
+  import { ILLUSTRATIONS } from '../lib/illustrations'
+  import { brewers, grinders, recipes } from '../lib/state/live.svelte'
+  import { href } from '../lib/state/router.svelte'
+  import { showToast } from '../lib/state/toast.svelte'
+
+  // ---- brewers
+  let editingBrewer = $state<string | null>(null) // id, or 'new'
+  let brewerForm = $state({ name: '', method: 'pour_over', filter: '', illustration: null as string | null })
+
+  function editBrewer(b: Brewer | null) {
+    editingBrewer = b?.id ?? 'new'
+    brewerForm = { name: b?.name ?? '', method: b?.method ?? 'pour_over', filter: b?.filter ?? '', illustration: b?.illustration ?? null }
+  }
+
+  async function submitBrewer() {
+    if (!brewerForm.name.trim()) return
+    await saveBrewer(editingBrewer === 'new' ? null : editingBrewer, brewerForm)
+    editingBrewer = null
+  }
+
+  // ---- grinders
+  let editingGrinder = $state<string | null>(null)
+  let grinderForm = $state({ name: '', setting_hint: '' })
+
+  function editGrinder(g: Grinder | null) {
+    editingGrinder = g?.id ?? 'new'
+    grinderForm = { name: g?.name ?? '', setting_hint: g?.setting_hint ?? '' }
+  }
+
+  async function submitGrinder() {
+    if (!grinderForm.name.trim()) return
+    await saveGrinder(editingGrinder === 'new' ? null : editingGrinder, grinderForm)
+    editingGrinder = null
+  }
+
+  // ---- recipes
+  let editingRecipe = $state<string | null>(null) // root id, or 'new'
+  const latest = $derived(latestRecipes(recipes.rows))
+</script>
+
+<div class="stack equipment">
+  <a class="back" href={href('/settings')}>‹ Settings</a>
+
+  <section class="stack">
+    <h2>Brewers</h2>
+    {#each brewers.rows as b (b.id)}
+      {#if editingBrewer === b.id}
+        {@render brewerEditor()}
+      {:else}
+        <button class="item" onclick={() => editBrewer(b)}>
+          <BrewerArt illustrationKey={b.illustration} method={b.method} size={56} />
+          <span class="text">
+            <strong>{b.name}</strong>
+            <span class="muted">{methodLabel(b.method)}{b.filter ? ` · ${b.filter}` : ''}</span>
+          </span>
+        </button>
+      {/if}
+    {/each}
+    {#if editingBrewer === 'new'}{@render brewerEditor()}{:else}<button onclick={() => editBrewer(null)}>+ Add brewer</button>{/if}
+  </section>
+
+  <section class="stack">
+    <h2>Grinders</h2>
+    {#each grinders.rows as g (g.id)}
+      {#if editingGrinder === g.id}
+        {@render grinderEditor()}
+      {:else}
+        <button class="item" onclick={() => editGrinder(g)}>
+          <span class="text"><strong>{g.name}</strong>{#if g.setting_hint}<span class="muted">Settings like {g.setting_hint}</span>{/if}</span>
+        </button>
+      {/if}
+    {/each}
+    {#if editingGrinder === 'new'}{@render grinderEditor()}{:else}<button onclick={() => editGrinder(null)}>+ Add grinder</button>{/if}
+  </section>
+
+  <section class="stack">
+    <h2>Recipes</h2>
+    <p class="muted">Most recipes start from “Save as recipe” after a brew. Editing saves a new version; old brews keep what they used.</p>
+    {#each latest as r (r.root_id)}
+      {#if editingRecipe === r.root_id}
+        <div class="card">
+          <RecipeForm
+            initial={{ ...paramsOf(r), name: r.name ?? '', note: r.note ?? '' }}
+            rootId={r.root_id}
+            onsaved={() => (editingRecipe = null)}
+            oncancel={() => (editingRecipe = null)}
+          />
+          <button
+            class="danger"
+            onclick={async () => {
+              await deleteRecipe(recipes.rows, r.root_id)
+              editingRecipe = null
+              showToast('Recipe deleted')
+            }}>Delete recipe</button
+          >
+        </div>
+      {:else}
+        <button class="item" onclick={() => (editingRecipe = r.root_id)}>
+          <MethodIcon method={r.method} />
+          <span class="text">
+            <strong>{r.name}</strong>
+            <span class="muted">{paramSummary(paramsOf(r)) || methodLabel(r.method)}</span>
+            <span class="muted small">{recipeEditedLabel(r)}</span>
+          </span>
+        </button>
+      {/if}
+    {/each}
+    {#if editingRecipe === 'new'}
+      <div class="card">
+        <RecipeForm
+          initial={{ ...defaultParams('pour_over'), name: '', note: '' }}
+          onsaved={() => (editingRecipe = null)}
+          oncancel={() => (editingRecipe = null)}
+        />
+      </div>
+    {:else}
+      <button onclick={() => (editingRecipe = 'new')}>+ New recipe</button>
+    {/if}
+  </section>
+</div>
+
+{#snippet brewerEditor()}
+  <div class="card stack">
+    <input type="text" bind:value={brewerForm.name} placeholder="Name, e.g. Origami" aria-label="Brewer name" />
+    <div class="chips">
+      {#each METHODS as m (m)}
+        <button class="chip" class:on={brewerForm.method === m} onclick={() => (brewerForm.method = m)}>
+          <MethodIcon method={m} size={20} />{methodLabel(m)}
+        </button>
+      {/each}
+    </div>
+    <input type="text" bind:value={brewerForm.filter} placeholder="Filter (optional)" aria-label="Filter" />
+    <span class="muted">Picture</span>
+    <div class="art-grid">
+      <button class="art" class:on={!brewerForm.illustration} onclick={() => (brewerForm.illustration = null)}>
+        <BrewerArt illustrationKey={null} method={brewerForm.method} size={64} />
+        <span class="small">Icon</span>
+      </button>
+      {#each ILLUSTRATIONS as ill (ill.key)}
+        <button class="art" class:on={brewerForm.illustration === ill.key} onclick={() => (brewerForm.illustration = ill.key)}>
+          <BrewerArt illustrationKey={ill.key} method={ill.method} size={64} />
+          <span class="small">{ill.name}</span>
+        </button>
+      {/each}
+    </div>
+    <div class="row">
+      {#if editingBrewer !== 'new'}
+        <button
+          class="danger"
+          onclick={async () => {
+            await removeEquipment('brewer', editingBrewer!)
+            editingBrewer = null
+          }}>Remove</button
+        >
+      {/if}
+      <button onclick={() => (editingBrewer = null)}>Cancel</button>
+      <button class="primary" onclick={submitBrewer} disabled={!brewerForm.name.trim()}>Save</button>
+    </div>
+  </div>
+{/snippet}
+
+{#snippet grinderEditor()}
+  <div class="card stack">
+    <input type="text" bind:value={grinderForm.name} placeholder="Name, e.g. Comandante C40" aria-label="Grinder name" />
+    <input type="text" bind:value={grinderForm.setting_hint} placeholder="How settings look, e.g. 22 clicks or 2.3.1" aria-label="Setting format" />
+    <div class="row">
+      {#if editingGrinder !== 'new'}
+        <button
+          class="danger"
+          onclick={async () => {
+            await removeEquipment('grinder', editingGrinder!)
+            editingGrinder = null
+          }}>Remove</button
+        >
+      {/if}
+      <button onclick={() => (editingGrinder = null)}>Cancel</button>
+      <button class="primary" onclick={submitGrinder} disabled={!grinderForm.name.trim()}>Save</button>
+    </div>
+  </div>
+{/snippet}
+
+<style>
+  .equipment {
+    max-width: 680px;
+    padding-bottom: 24px;
+  }
+  .back {
+    color: var(--accent);
+    text-decoration: none;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    text-align: left;
+    min-height: 72px;
+  }
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .small {
+    font-size: 13px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip.on,
+  .art.on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .art-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px;
+  }
+  .art {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    height: auto;
+    text-align: center;
+  }
+  .row button {
+    flex: 1;
+  }
+  .danger {
+    color: var(--danger);
+  }
+</style>

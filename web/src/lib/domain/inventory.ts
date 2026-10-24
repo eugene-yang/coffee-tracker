@@ -52,8 +52,10 @@ export interface InventoryOptions {
   now: Date
   rest: RestWindow
   doseG: number
-  /** grams used per bag (brews, from M2 on) */
+  /** grams used per bag (sum of brew doses) */
   usedG?: Map<string, number>
+  /** last dose per bag, for "cups left" (falls back to doseG) */
+  lastDoseG?: Map<string, number>
 }
 
 function groupBy<T>(rows: T[], key: (r: T) => string | null): Map<string, T[]> {
@@ -129,7 +131,8 @@ export function buildBagViews(rows: InventoryRows, opts: InventoryOptions): BagV
             : 'ready'
 
     const gramsLeft = bag.weight_g == null ? null : Math.max(0, bag.weight_g - (opts.usedG?.get(bag.id) ?? 0) + adjustG)
-    const cupsLeft = gramsLeft == null ? null : Math.floor(gramsLeft / opts.doseG)
+    const dose = opts.lastDoseG?.get(bag.id) ?? opts.doseG
+    const cupsLeft = gramsLeft == null ? null : Math.floor(gramsLeft / dose)
     const needsReview = bag.review_state === 'needs_review'
     const flavorTags = coffee?.flavor_tags ?? []
 
@@ -155,8 +158,8 @@ export function buildBagViews(rows: InventoryRows, opts: InventoryOptions): BagV
       frozenDays,
       gramsLeft,
       cupsLeft,
-      lastCup: gramsLeft != null && state !== 'finished' && gramsLeft < 2 * opts.doseG,
-      askFinished: gramsLeft != null && state !== 'finished' && gramsLeft < opts.doseG,
+      lastCup: gramsLeft != null && state !== 'finished' && gramsLeft < 2 * dose,
+      askFinished: gramsLeft != null && state !== 'finished' && gramsLeft < dose,
       addedAt: bag.created_at,
     }
   })

@@ -3,6 +3,8 @@
   import BagPanel from '../components/BagPanel.svelte'
   import CaptureButton from '../components/CaptureButton.svelte'
   import FilterSheet from '../components/FilterSheet.svelte'
+  import BrewShortcut from '../components/BrewShortcut.svelte'
+  import { shortcutsFor } from '../lib/state/shortcuts.svelte'
   import { FLAVOR_FAMILIES } from '../lib/domain/flavors'
   import {
     SECTION_LABELS,
@@ -21,6 +23,7 @@
   import { navigate } from '../lib/state/router.svelte'
 
   const layout = $derived(currentLayout())
+  const shortcuts = $derived(shortcutsFor())
   const SECTION_ORDER: SectionId[] = ['needs_review', 'open', 'ready', 'resting', 'frozen']
   const STATE_CHIPS: { key: StateChip; label: string }[] = [
     { key: 'ready', label: 'Ready' },
@@ -154,6 +157,11 @@
       <div class="top"><CaptureButton /></div>
     {:else}
       {@render controls()}
+      {#if shortcuts.length}
+        <div class="shortcuts" aria-label="Brew again">
+          {#each shortcuts as s (s.bagId + s.brew.method)}<BrewShortcut shortcut={s} compact />{/each}
+        </div>
+      {/if}
     {/if}
 
     {#if bags.loaded && inventory.views.length === 0}
@@ -223,6 +231,13 @@
   .top {
     display: flex;
     justify-content: flex-end;
+  }
+  .shortcuts {
+    display: flex;
+    gap: 12px;
+  }
+  .shortcuts :global(button) {
+    min-height: 72px;
   }
   section {
     display: flex;

@@ -5,8 +5,20 @@
   import Photo from './Photo.svelte'
   import type { BagView } from '../lib/domain/inventory'
   import { inventory } from '../lib/state/inventory.svelte'
+  import { brewAgainSource, methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { brewState } from '../lib/state/brew.svelte'
+  import { device } from '../lib/state/device.svelte'
+  import { brews } from '../lib/state/live.svelte'
+  import { navigate } from '../lib/state/router.svelte'
 
   let { view, onclose }: { view: BagView; onclose: () => void } = $props()
+
+  const again = $derived(brewAgainSource(brews.rows, view.id, device.userId))
+
+  function brew() {
+    brewState.prepare(view.id, device.userId, again ? { method: again.method } : {})
+    navigate(`/brew/${view.id}`)
+  }
 </script>
 
 <aside class="panel" aria-label="Bag details">
@@ -22,7 +34,10 @@
 
   <FreshnessBar {view} rest={inventory.rest} />
 
-  <button class="primary brew" disabled title="Brewing arrives in the next milestone">Brew again</button>
+  <button class="primary brew" onclick={brew}>
+    {again ? 'Brew again' : 'Brew'}
+    {#if again}<small>{methodLabel(again.method)} · {paramSummary(paramsOf(again))}</small>{/if}
+  </button>
 
   {#if view.gramsLeft != null}
     <p class="amount">{view.lastCup ? 'Last cup' : `~${view.cupsLeft} cups`} · {Math.round(view.gramsLeft)} g left</p>
@@ -87,6 +102,15 @@
     min-height: 72px;
     font-size: 20px;
     font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .brew small {
+    font-size: 14px;
+    font-weight: 500;
   }
   .amount {
     margin: 0;

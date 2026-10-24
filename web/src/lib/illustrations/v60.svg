@@ -1,0 +1,11 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <ellipse class="sh" cx="128" cy="214" rx="84" ry="10"/>
+  <rect class="b" x="52" y="188" width="152" height="16" rx="6"/>
+  <rect class="g" x="108" y="174" width="40" height="16"/>
+  <path class="g" d="M50 72h156l-58 104h-40z"/>
+  <path class="h" d="M64 80h10l40 76h-7z"/>
+  <path class="s thin" d="M80 84c18 28 30 52 36 84M112 84c7 30 11 56 11 84M150 84c-6 30-12 56-16 84M180 84c-18 30-28 52-34 84"/>
+  <path class="s" d="M50 72h156l-58 104h-40zM108 176v12M148 176v12"/>
+  <path class="s" d="M44 72h168"/>
+  <path class="s" d="M194 90c36-2 42 50 6 54"/>
+</svg>

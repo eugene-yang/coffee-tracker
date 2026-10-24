@@ -135,3 +135,25 @@ def test_seed_aliases_are_synced(client):
     aliases = {(r["row"]["kind"], r["row"]["alias"]): r["row"]["canonical"] for r in rows if r["table"] == "alias"}
     assert aliases[("variety", "geisha")] == "Gesha"
     assert aliases[("process", "fully washed")] == "Washed"
+
+
+def test_brew_tables_roundtrip(client):
+    brew = str(uuid.uuid4())
+    results = push(
+        client,
+        op(table="brew", id=brew, bag_id="b1", brewer_user_id="u1", method="pour_over", dose_g=15, water_g=250,
+           steps=[{"label": "Bloom", "at_s": 0, "to_g": 45}], laps=[32.5], started_from="brew_again"),
+        op(table="brew_taster", id=f"{brew}:u1", brew_id=brew, user_id="u1"),
+        op(table="recipe", id="r1", root_id="r1", version=1, name="Daily V60", method="pour_over", steps=[]),
+    )
+    assert results == ["applied", "applied", "applied"]
+    rows = {r["table"]: r["row"] for r in pull(client)["rows"]}
+    assert rows["brew"]["steps"][0]["label"] == "Bloom" and rows["brew"]["dose_g"] == 15
+    assert rows["recipe"]["version"] == 1
+
+
+def test_owned_brewers_are_seeded_once(client):
+    rows = [r["row"] for r in pull(client, since=0, limit=2000)["rows"] if r["table"] == "brewer"]
+    assert {r["illustration"] for r in rows} == {"v60", "kadou", "switch", "aeropress", "espresso", "siphon"}
+    # a deleted seed brewer stays deleted
+    push(client, op(table="brewer", id="seed:siphon", kind="delete"))

@@ -13,6 +13,7 @@
   import { DOSE_SETTING } from '../lib/state/inventory.svelte'
   import { settingValue, users } from '../lib/state/live.svelte'
   import { syncNow, syncState } from '../lib/state/sync.svelte'
+  import { href } from '../lib/state/router.svelte'
 
   const COLORS = ['#d39a6a', '#e6c36a', '#8fc2a0', '#86b3d9', '#b9a3e3', '#e39aa8']
   const LAYOUTS: { value: LayoutChoice; label: string }[] = [
@@ -94,6 +95,11 @@
         {/each}
       </div>
     </div>
+  </section>
+
+  <section class="stack">
+    <h2>Equipment</h2>
+    <a class="card link" href={href('/settings/equipment')}>Brewers, grinders & recipes ›</a>
   </section>
 
   <section class="stack">
@@ -223,6 +229,12 @@
 <style>
   .settings {
     max-width: 640px;
+  }
+  .link {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
   }
   .chips {
     display: flex;
