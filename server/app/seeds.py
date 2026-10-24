@@ -41,8 +41,27 @@ SEED_ALIASES = [
 ]
 
 
+# The household's brewers (editable/deletable in Settings); illustration keys match web/src/lib/illustrations
+SEED_BREWERS = [
+    ("v60", "Hario V60 (glass)", "pour_over", "Hario V60 paper", "v60"),
+    ("kadou", "Kadou", "pour_over", "Cone paper", "kadou"),
+    ("switch", "Hario Switch", "switch", "Hario V60 paper", "switch"),
+    ("aeropress", "AeroPress", "aeropress", "AeroPress paper", "aeropress"),
+    ("dedica", "De'Longhi Dedica Arte", "espresso", None, "espresso"),
+    ("siphon", "Siphon", "siphon", "Cloth", "siphon"),
+]
+
+
 def seed(conn: sqlite3.Connection) -> None:
-    for kind, alias, canonical in SEED_ALIASES:
-        row_id = f"seed:{kind}:{alias}"
-        if not conn.execute("SELECT 1 FROM alias WHERE id = ?", (row_id,)).fetchone():
-            server_write(conn, "alias", row_id, {"kind": kind, "alias": alias, "canonical": canonical})
+    _insert_once(conn, "alias", [(f"seed:{k}:{a}", {"kind": k, "alias": a, "canonical": c}) for k, a, c in SEED_ALIASES])
+    _insert_once(
+        conn,
+        "brewer",
+        [(f"seed:{key}", {"name": n, "method": m, "filter": f, "illustration": i}) for key, n, m, f, i in SEED_BREWERS],
+    )
+
+
+def _insert_once(conn: sqlite3.Connection, table: str, rows: list[tuple[str, dict]]) -> None:
+    for row_id, values in rows:
+        if not conn.execute(f'SELECT 1 FROM "{table}" WHERE id = ?', (row_id,)).fetchone():
+            server_write(conn, table, row_id, values)

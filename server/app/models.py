@@ -41,6 +41,13 @@ SYNC_TABLES: dict[str, SyncTable] = {
         _t("extraction", text="status model prompt_version error queued_at finished_at",
            json="raw corrected_fields", server_only="model prompt_version raw error finished_at"),
         _t("alias", text="kind alias canonical"),
+        _t("grinder", text="name setting_hint"),
+        _t("brewer", text="name method filter illustration"),
+        _t("recipe", text="root_id name method brewer_id grinder_id grind_setting note author_id", json="steps",
+           number="version dose_g water_g yield_g temp_c time_s"),
+        _t("brew", text="bag_id brewer_user_id method brewer_id grinder_id grind_setting recipe_id started_from brewed_at note",
+           json="steps laps extras", number="dose_g water_g yield_g temp_c time_s recipe_version"),
+        _t("brew_taster", text="brew_id user_id"),
     ]
 }
 
