@@ -40,35 +40,62 @@ def _apply(conn: sqlite3.Connection, op: Op) -> None:
     table = SYNC_TABLES.get(op.table)
     if table is None:
         raise OpRejected(f"unknown table {op.table!r}")
-    values = _validate_patch(table, op.patch) if op.kind == "upsert" else {}
+    if op.kind == "delete":
+        values = {"deleted_at": now_iso()}
+    else:
+        values = _validate_patch(table, op.patch)
+    write_row(conn, table.name, op.id, values, by=op.by, client_ts=op.client_ts)
 
+
+def write_row(
+    conn: sqlite3.Connection,
+    table: str,
+    id: str,
+    values: dict,
+    by: str | None,
+    client_ts: str | None = None,
+) -> int:
+    """Insert or patch a synced row with a fresh seq; call inside a write transaction. Returns the seq."""
     now = now_iso()
     seq = next_seq(conn)
-    exists = conn.execute(f'SELECT 1 FROM "{table.name}" WHERE id = ?', (op.id,)).fetchone()
-
-    if op.kind == "delete":
-        values = {"deleted_at": now}
-    values |= {"updated_at": now, "updated_by": op.by, "seq": seq}
-
-    if exists:
+    values = values | {"updated_at": now, "updated_by": by, "seq": seq}
+    if conn.execute(f'SELECT 1 FROM "{table}" WHERE id = ?', (id,)).fetchone():
         # Patches carry only changed fields, so edits to different fields merge
         assignments = ", ".join(f'"{col}" = ?' for col in values)
-        conn.execute(f'UPDATE "{table.name}" SET {assignments} WHERE id = ?', (*values.values(), op.id))
+        conn.execute(f'UPDATE "{table}" SET {assignments} WHERE id = ?', (*values.values(), id))
     else:
-        values |= {"id": op.id, "created_at": _created_at(op.client_ts, now)}
+        values |= {"id": id, "created_at": _created_at(client_ts, now)}
         cols = ", ".join(f'"{col}"' for col in values)
         marks = ", ".join("?" for _ in values)
-        conn.execute(f'INSERT INTO "{table.name}" ({cols}) VALUES ({marks})', tuple(values.values()))
+        conn.execute(f'INSERT INTO "{table}" ({cols}) VALUES ({marks})', tuple(values.values()))
+    return seq
+
+
+def server_write(conn: sqlite3.Connection, table: str, id: str, values: dict) -> None:
+    """Write from server code (workers, uploads) in its own transaction; JSON columns are encoded."""
+    spec = SYNC_TABLES[table]
+    encoded = {k: (json.dumps(v) if k in spec.json and v is not None else v) for k, v in values.items()}
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        write_row(conn, table, id, encoded, by="server")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
 
 
 def _validate_patch(table: SyncTable, patch: dict) -> dict:
     values = {}
     for col, value in patch.items():
-        if col in SYSTEM_COLUMNS:
+        if col in SYSTEM_COLUMNS or col in table.server_only:
             raise OpRejected(f"column {col!r} is managed by the server")
         if col in table.text:
             if value is not None and not isinstance(value, str):
                 raise OpRejected(f"column {col!r} must be a string or null")
+            values[col] = value
+        elif col in table.number:
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+                raise OpRejected(f"column {col!r} must be a number or null")
             values[col] = value
         elif col in table.json:
             values[col] = None if value is None else json.dumps(value)

@@ -3,7 +3,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { uuidv7 } from './uuid'
 
-export const SYNC_TABLES = ['user', 'setting'] as const
+export const SYNC_TABLES = ['user', 'setting', 'roaster', 'coffee', 'bag', 'bag_event', 'photo', 'extraction', 'alias'] as const
 export type TableName = (typeof SYNC_TABLES)[number]
 
 export interface Row {
@@ -26,14 +26,16 @@ export interface Op {
   by: string | null
 }
 
-interface CoffeeDB extends DBSchema {
-  user: { key: string; value: Row }
-  setting: { key: string; value: Row }
+type SyncStores = { [T in TableName]: { key: string; value: Row } }
+
+interface CoffeeDB extends DBSchema, SyncStores {
   outbox: { key: number; value: Op & { n?: number } }
   meta: { key: string; value: unknown }
+  // Captured photos waiting to be uploaded (key: photo id)
+  photo_blob: { key: string; value: Blob }
 }
 
-type Listener = (table: TableName | 'outbox') => void
+type Listener = (table: TableName | 'outbox' | 'photo_blob') => void
 
 let dbPromise: Promise<IDBPDatabase<CoffeeDB>> | null = null
 const listeners = new Set<Listener>()
@@ -41,11 +43,14 @@ let clockOffsetMs = 0
 let actorId: () => string | null = () => null
 
 export function initDb(name = 'coffee'): Promise<IDBPDatabase<CoffeeDB>> {
-  dbPromise = openDB<CoffeeDB>(name, 1, {
+  dbPromise = openDB<CoffeeDB>(name, 2, {
     upgrade(db) {
-      for (const t of SYNC_TABLES) db.createObjectStore(t, { keyPath: 'id' })
-      db.createObjectStore('outbox', { keyPath: 'n', autoIncrement: true })
-      db.createObjectStore('meta')
+      // Additive: create whatever stores this version knows about and the old one didn't
+      const has = (s: string) => db.objectStoreNames.contains(s as never)
+      for (const t of SYNC_TABLES) if (!has(t)) db.createObjectStore(t, { keyPath: 'id' })
+      if (!has('outbox')) db.createObjectStore('outbox', { keyPath: 'n', autoIncrement: true })
+      if (!has('meta')) db.createObjectStore('meta')
+      if (!has('photo_blob')) db.createObjectStore('photo_blob')
     },
   })
   dbPromise.then(async (db) => {
@@ -68,7 +73,7 @@ export function onChange(fn: Listener): () => void {
   return () => listeners.delete(fn)
 }
 
-export function emit(table: TableName | 'outbox'): void {
+export function emit(table: TableName | 'outbox' | 'photo_blob'): void {
   for (const fn of listeners) fn(table)
 }
 
@@ -118,5 +123,15 @@ export async function getRow(table: TableName, id: string): Promise<Row | undefi
 }
 
 export async function pendingCount(): Promise<number> {
-  return (await db()).count('outbox')
+  const d = await db()
+  return (await d.count('outbox')) + (await d.count('photo_blob'))
+}
+
+export async function savePhotoBlob(id: string, blob: Blob): Promise<void> {
+  await (await db()).put('photo_blob', blob, id)
+  emit('photo_blob')
+}
+
+export async function getPhotoBlob(id: string): Promise<Blob | undefined> {
+  return (await db()).get('photo_blob', id)
 }

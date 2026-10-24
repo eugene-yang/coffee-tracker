@@ -18,11 +18,15 @@ export interface PullResponse {
 export interface Transport {
   push(ops: Op[]): Promise<{ results: PushResult[]; server_time: string }>
   pull(since: number): Promise<PullResponse>
+  /** Resolves true when stored, false when the server refuses the file for good (not an image). */
+  uploadPhoto(id: string, blob: Blob): Promise<boolean>
 }
+
+const API = `${import.meta.env.BASE_URL}api`
 
 export const httpTransport: Transport = {
   async push(ops) {
-    const res = await fetch('/api/sync/push', {
+    const res = await fetch(`${API}/sync/push`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ops }),
@@ -31,10 +35,27 @@ export const httpTransport: Transport = {
     return res.json()
   },
   async pull(since) {
-    const res = await fetch(`/api/sync/pull?since=${since}`)
+    const res = await fetch(`${API}/sync/pull?since=${since}`)
     if (!res.ok) throw new Error(`pull failed: ${res.status}`)
     return res.json()
   },
+  async uploadPhoto(id, blob) {
+    const res = await fetch(`${API}/photos/${id}`, { method: 'PUT', body: blob })
+    if (res.status === 400) return false
+    if (!res.ok) throw new Error(`photo upload failed: ${res.status}`)
+    return true
+  },
+}
+
+/** Upload captured photos before pushing the rows that reference them. */
+export async function uploadPhotos(transport: Transport): Promise<void> {
+  const d = await db()
+  for (const id of await d.getAllKeys('photo_blob')) {
+    const blob = await d.get('photo_blob', id)
+    if (blob && !(await transport.uploadPhoto(id, blob))) console.warn('sync: photo refused by server', id)
+    await d.delete('photo_blob', id)
+    emit('photo_blob')
+  }
 }
 
 const PUSH_BATCH = 200
@@ -82,6 +103,7 @@ export async function pullChanges(transport: Transport): Promise<void> {
 }
 
 export async function syncOnce(transport: Transport = httpTransport): Promise<void> {
+  await uploadPhotos(transport)
   await pushOutbox(transport)
   await pullChanges(transport)
 }

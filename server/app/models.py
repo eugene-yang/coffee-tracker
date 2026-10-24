@@ -14,17 +14,33 @@ class SyncTable:
     name: str
     text: frozenset[str] = field(default_factory=frozenset)
     json: frozenset[str] = field(default_factory=frozenset)
+    number: frozenset[str] = field(default_factory=frozenset)
+    server_only: frozenset[str] = field(default_factory=frozenset)  # written by the server, never by clients
 
     @property
     def columns(self) -> frozenset[str]:
-        return self.text | self.json
+        return self.text | self.json | self.number
+
+
+def _t(name: str, text: str = "", json: str = "", number: str = "", server_only: str = "") -> SyncTable:
+    return SyncTable(name, frozenset(text.split()), frozenset(json.split()), frozenset(number.split()),
+                     frozenset(server_only.split()))
 
 
 SYNC_TABLES: dict[str, SyncTable] = {
     t.name: t
     for t in [
-        SyncTable("user", text=frozenset({"name", "color", "avatar"})),
-        SyncTable("setting", json=frozenset({"value"})),
+        _t("user", text="name color avatar"),
+        _t("setting", json="value"),
+        _t("roaster", text="name", json="aliases"),
+        _t("coffee", text="roaster_id name origin producer variety process roast_level altitude notes",
+           json="tasting_notes flavor_tags"),
+        _t("bag", text="coffee_id roast_date purchased_at review_state", number="weight_g price"),
+        _t("bag_event", text="bag_id kind at user_id", number="grams_delta"),
+        _t("photo", text="bag_id sha256 uploaded", number="position width height", server_only="uploaded"),
+        _t("extraction", text="status model prompt_version error queued_at finished_at",
+           json="raw corrected_fields", server_only="model prompt_version raw error finished_at"),
+        _t("alias", text="kind alias canonical"),
     ]
 }
 

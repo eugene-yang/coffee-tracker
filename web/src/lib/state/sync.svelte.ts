@@ -69,7 +69,7 @@ export function requestSync(delayMs = WRITE_DEBOUNCE_MS): void {
 
 export function startSync(): void {
   onChange((table) => {
-    if (table !== 'outbox') return
+    if (table !== 'outbox' && table !== 'photo_blob') return
     refreshPending()
     requestSync()
   })
