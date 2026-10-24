@@ -7,6 +7,7 @@ from app.main import create_app
 
 # Tests drive the extraction worker explicitly; never call a real Ollama
 os.environ["COFFEE_EXTRACTION"] = "off"
+os.environ["COFFEE_PUSH"] = "off"
 
 
 @pytest.fixture

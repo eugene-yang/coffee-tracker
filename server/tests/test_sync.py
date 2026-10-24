@@ -176,3 +176,45 @@ def test_owned_brewers_are_seeded_once(client):
     assert {r["illustration"] for r in rows} == {"v60", "kadou", "switch", "aeropress", "espresso", "siphon"}
     # a deleted seed brewer stays deleted
     push(client, op(table="brewer", id="seed:siphon", kind="delete"))
+
+
+def restore_op(table, id, **row):
+    return {"op_id": str(uuid.uuid4()), "table": table, "id": id, "kind": "restore", "patch": row}
+
+
+def test_pull_reports_the_database_epoch(client):
+    assert isinstance(pull(client)["epoch"], int)
+
+
+def test_restore_inserts_missing_rows_and_keeps_newer_copies(client):
+    push(client, op(id="kept", name="Server copy"))
+    server_row = pull(client)["rows"][0]["row"]
+    results = push(
+        client,
+        # lost in the restore: comes back with its original timestamps, tombstones included
+        restore_op("user", "lost", name="Ana", created_at="2026-10-20T08:00:00.000Z",
+                   updated_at="2026-10-23T08:00:00.000Z", deleted_at=None, updated_by="u1"),
+        restore_op("user", "gone", name="Old", created_at="2026-10-20T08:00:00.000Z",
+                   updated_at="2026-10-23T09:00:00.000Z", deleted_at="2026-10-23T09:00:00.000Z"),
+        # an older device copy never overwrites the server's
+        restore_op("user", "kept", name="Stale device copy", updated_at="2000-01-01T00:00:00.000Z"),
+    )
+    assert results == ["applied", "applied", "applied"]
+    rows = {r["row"]["id"]: r["row"] for r in pull(client)["rows"]}
+    assert rows["lost"]["name"] == "Ana" and rows["lost"]["created_at"] == "2026-10-20T08:00:00.000Z"
+    assert rows["lost"]["updated_at"] == "2026-10-23T08:00:00.000Z" and rows["lost"]["updated_by"] == "u1"
+    assert rows["gone"]["deleted_at"] == "2026-10-23T09:00:00.000Z"
+    assert rows["kept"]["name"] == "Server copy" and rows["kept"]["seq"] == server_row["seq"]
+    # a newer device copy wins
+    push(client, restore_op("user", "kept", name="Edited after the backup", updated_at="2999-01-01T00:00:00.000Z"))
+    assert [r["row"]["name"] for r in pull(client)["rows"] if r["row"]["id"] == "kept"] == ["Edited after the backup"]
+
+
+def test_restore_may_carry_server_written_columns(client):
+    assert push(client, restore_op("photo", "p1", bag_id="b1", uploaded="2026-10-23T08:00:00.000Z",
+                                   updated_at="2026-10-23T08:00:00.000Z")) == ["applied"]
+    assert push(client, op(table="photo", id="p1", uploaded="x")) == ["rejected"]  # still not for normal writes
+
+
+def test_restore_needs_timestamps(client):
+    assert push(client, restore_op("user", "x", name="No stamps")) == ["rejected"]

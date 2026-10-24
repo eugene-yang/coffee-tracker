@@ -33,6 +33,8 @@ export default defineConfig({
         navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Web Push handler ("How's the cup?"), kept as a plain script next to the generated worker
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             // Thumbnails never change for a given id: keep them for offline browsing

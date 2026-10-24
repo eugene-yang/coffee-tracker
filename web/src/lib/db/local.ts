@@ -36,7 +36,8 @@ export interface Op {
   op_id: string
   table: TableName
   id: string
-  kind: 'upsert' | 'delete'
+  // restore: sending back a full local copy after the server was restored from a backup (never queued)
+  kind: 'upsert' | 'delete' | 'restore'
   patch: Record<string, unknown>
   client_ts: string
   by: string | null
@@ -56,6 +57,7 @@ type Listener = (table: TableName | 'outbox' | 'photo_blob') => void
 let dbPromise: Promise<IDBPDatabase<CoffeeDB>> | null = null
 const listeners = new Set<Listener>()
 let clockOffsetMs = 0
+const storageFullListeners = new Set<() => void>()
 let actorId: () => string | null = () => null
 
 export function initDb(name = 'coffee'): Promise<IDBPDatabase<CoffeeDB>> {
@@ -82,6 +84,22 @@ export function db(): Promise<IDBPDatabase<CoffeeDB>> {
 /** Who gets recorded as updated_by on local writes. */
 export function setActor(fn: () => string | null): void {
   actorId = fn
+}
+
+/** The device ran out of storage for this app (the one case the UI may block for). */
+export function onStorageFull(fn: () => void): () => void {
+  storageFullListeners.add(fn)
+  return () => storageFullListeners.delete(fn)
+}
+
+export function isQuotaError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)
+}
+
+/** Report quota errors from a write, then rethrow. */
+export function reportStorageFull(e: unknown): never {
+  if (isQuotaError(e)) for (const fn of storageFullListeners) fn()
+  throw e
 }
 
 export function onChange(fn: Listener): () => void {
@@ -117,12 +135,12 @@ export async function mutate(
   table: TableName,
   id: string,
   patch: Record<string, unknown>,
-  kind: Op['kind'] = 'upsert',
+  kind: 'upsert' | 'delete' = 'upsert',
 ): Promise<Row> {
   const op: Op = { op_id: uuidv7(), table, id, kind, patch, client_ts: nowIso(), by: actorId() }
   const tx = (await db()).transaction([table, 'outbox'], 'readwrite')
   const row = applyOp(await tx.objectStore(table).get(id), op)
-  await Promise.all([tx.objectStore(table).put(row), tx.objectStore('outbox').add(op), tx.done])
+  await Promise.all([tx.objectStore(table).put(row), tx.objectStore('outbox').add(op), tx.done]).catch(reportStorageFull)
   emit(table)
   emit('outbox')
   return row
@@ -148,7 +166,7 @@ export async function pendingCount(): Promise<number> {
 }
 
 export async function savePhotoBlob(id: string, blob: Blob): Promise<void> {
-  await (await db()).put('photo_blob', blob, id)
+  await (await db()).put('photo_blob', blob, id).catch(reportStorageFull)
   emit('photo_blob')
 }
 

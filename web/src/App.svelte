@@ -7,6 +7,7 @@
   import BagDetail from './routes/BagDetail.svelte'
   import Capture from './routes/Capture.svelte'
   import Toast from './components/Toast.svelte'
+  import StorageFull from './components/StorageFull.svelte'
   import Brew from './routes/Brew.svelte'
   import Settings from './routes/Settings.svelte'
   import Equipment from './routes/Equipment.svelte'
@@ -50,3 +51,4 @@
   <PhoneShell section={section === 'bag' || section === 'capture' ? 'inventory' : section === 'rate' ? 'home' : section}>{@render page()}</PhoneShell>
 {/if}
 <Toast />
+<StorageFull />

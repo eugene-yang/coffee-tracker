@@ -69,9 +69,20 @@ challenge, so nothing has to be exposed to the internet and no device needs a cu
    - Android tablet: open it in Chrome (or another Chromium browser) → menu → Install app. For a
      kiosk, use screen pinning or Fully Kiosk Browser.
    - Open Settings in the app, add the people in the household, and pick who uses each device.
-6. **Backups** — `deploy/backup.sh` snapshots the database into `data/backups` (keeps 14). Run it
-   nightly from cron, e.g. `30 3 * * * /path/to/coffee-tracker/deploy/backup.sh`, and copy
-   `data/` off the machine as part of your usual backups.
+   - Notifications ("How's the cup?" a few minutes after a brew you're drinking): Settings →
+     Notifications → Turn on, on each phone. On iPhone this only works in the Home Screen app.
+     Use "Send a test" to check a device. The server makes its push key on first start
+     (`data/vapid_private.pem`); keep it, or every device has to turn notifications on again.
+6. **Backups** — `deploy/backup.sh` snapshots the database into `data/backups` (keeps 14) and copies
+   new photos and the push key next to it. Run it nightly from cron, e.g.
+   `30 3 * * * /path/to/coffee-tracker/deploy/backup.sh`, and copy `data/` off the machine as part of
+   your usual backups.
+7. **Restore** — `deploy/restore.sh` (newest snapshot) or `deploy/restore.sh coffee-YYYYMMDD-HHMMSS.db`.
+   It stops the app, keeps the current database as `coffee.db.before-restore-<time>`, restores the
+   snapshot and any missing photos, and starts the app again. Each device then sends back anything
+   newer it still has and pulls everything again on its next sync, so cups logged after the backup
+   come back from the phones and the tablet. Only restore with this script: it is what tells devices
+   that the server's history changed.
 
 Label reading uses the Ollama instance on the server (`OLLAMA_HOST`, model `COFFEE_VLM_MODEL`, default
 `qwen3.5:4b`). If Ollama is down, bags are still added and the review screen offers a retry; set

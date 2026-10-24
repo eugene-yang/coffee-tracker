@@ -59,5 +59,10 @@ def next_seq(conn: sqlite3.Connection) -> int:
     return conn.execute("UPDATE meta SET value = value + 1 WHERE key = 'seq' RETURNING value").fetchone()[0]
 
 
+def epoch(conn: sqlite3.Connection) -> int:
+    """Identity of this database's history; a restore from backup gives it a new one."""
+    return conn.execute("SELECT value FROM meta WHERE key = 'epoch'").fetchone()[0]
+
+
 def now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")

@@ -1,4 +1,6 @@
 // Per-device preferences: never synced, kept in localStorage (may be unavailable, so guarded).
+import { refreshPushOwner } from '../push'
+
 export type LayoutChoice = 'auto' | 'phone' | 'station'
 
 function read(key: string): string | null {
@@ -26,6 +28,7 @@ export const device = $state({
 export function setDeviceUser(id: string | null): void {
   device.userId = id
   write('coffee.userId', id)
+  refreshPushOwner(id) // reminders follow the person now using this device
 }
 
 export function setLayoutChoice(choice: LayoutChoice): void {

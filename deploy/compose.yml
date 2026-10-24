@@ -13,6 +13,8 @@ services:
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       COFFEE_VLM_MODEL: ${COFFEE_VLM_MODEL:-qwen3.5:4b}
       COFFEE_EXTRACTION: ${COFFEE_EXTRACTION:-on}
+      # Web Push contact the push services can reach (Apple requires a real one)
+      COFFEE_PUSH_SUBJECT: mailto:${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
     extra_hosts:
       - host.docker.internal:host-gateway
 
