@@ -217,12 +217,11 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 - One SVG per brewer owned today (reference photos in `docs/reference/brewers/`):
   | Key | Brewer | Recognizable features to keep |
   |---|---|---|
-  | `v60` | Hario V60 | 60° cone, spiral ribs, single large hole, loop handle, round base plate |
+  | `v60` | Hario V60, glass | Clear glass 60° cone (light tint + highlight to read as glass), spiral ribs, single large hole, loop handle, round base plate |
   | `kadou` | Kadou ceramic dripper | Celadon-green glaze, steep cone with vertical fluted ribs inside the rim, angular open handle, wide flat saucer base (embossed カドウ omitted — no text in illustrations) |
-  | `clamax` | Clamax — TBD | Pending identification |
   | `switch` | Hario Switch | Glass cone on a round base with the switch/ball-valve lever |
   | `aeropress` | AeroPress | Chamber + plunger, hex-edged filter cap |
-  | `espresso` | Espresso machine | Generic machine + portafilter until the model is known |
+  | `espresso` | De'Longhi Dedica Arte (EC885.M) | Very slim, tall stainless body, buttons at the top front, portafilter with handle, steam wand on the side, drip tray |
   | `siphon` | Siphon | Two glass globes on a stand, burner below |
 - Each manifest entry carries a **signature color** (e.g. Kadou celadon) used as the accent fill, so brewers are recognizable at a glance; outlines and shading still come from theme variables
 - House style defined once and written into `lib/illustrations/STYLE.md` so later additions match: flat shapes, 2–3 fills from CSS variables (`--ill-fg`, `--ill-accent`, `--ill-bg`), no gradients or text, 256×256 viewBox, ≤ 6 KB each
@@ -289,7 +288,6 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 
 ## 11. Open questions for the plan
 
-- Brewer details for illustrations: what "Clamax" is, V60 material/color, espresso machine model
 - Illustration house style: review 2–3 directions in the gallery before generating the full set
 
 Decided: Svelte 5; Docker Compose for deploy; method icons drawn in-house (M2); brewer pictures are agent-generated SVG illustrations at dev time (M2), runtime photo restyling deferred; UX review folded in (`docs/UX_REVIEW.md`), with these deviations from it: all detail scales stay 1–5 (words at 1 / 3 / 5) and ship in M3; no `temp_band_touched`; brewer images kept.
