@@ -2,6 +2,10 @@ import { expect, test } from '@playwright/test'
 
 const ENDPOINT = 'https://push.example.test/e2e-device'
 
+// The default headless shell has no notifications (permission always reads "denied");
+// full Chromium in new headless mode does
+test.use({ channel: 'chromium' })
+
 test('notifications: turn on and off in Settings; the service worker shows a pushed reminder', async ({ browser, request, baseURL }) => {
   await request.post('/api/sync/push', {
     data: { ops: [{ op_id: `user-u-nia-${Math.random()}`, table: 'user', id: 'u-nia', kind: 'upsert', patch: { name: 'Nia', color: '#86b3d9' } }] },
@@ -45,13 +49,21 @@ test('notifications: turn on and off in Settings; the service worker shows a pus
     }),
   )
   await cdp.send('ServiceWorker.enable')
-  await cdp.send('ServiceWorker.deliverPushMessage', {
-    origin: new URL(baseURL!).origin,
-    registrationId: await registrationId,
-    data: JSON.stringify({ title: "How's the cup?", body: 'Kii AA — tap to rate', url: '/', tag: 'tasting:b:u' }),
-  })
+  const id = await registrationId
+  // A push delivered while the worker is still starting can be dropped: deliver until it shows
+  // (same tag, so a repeat replaces the notification instead of adding one)
   await expect
-    .poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => `${n.title} | ${n.body}`)))
+    .poll(
+      async () => {
+        await cdp.send('ServiceWorker.deliverPushMessage', {
+          origin: new URL(baseURL!).origin,
+          registrationId: id,
+          data: JSON.stringify({ title: "How's the cup?", body: 'Kii AA — tap to rate', url: '/', tag: 'tasting:b:u' }),
+        })
+        return page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => `${n.title} | ${n.body}`))
+      },
+      { intervals: [500, 1000, 2000], timeout: 15_000 },
+    )
     .toEqual(["How's the cup? | Kii AA — tap to rate"])
 
   const unsubscribed = page.waitForRequest((r) => r.url().endsWith('/api/push/subscribe') && r.method() === 'DELETE')
