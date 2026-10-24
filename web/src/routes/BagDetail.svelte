@@ -80,6 +80,9 @@
       {#if view.gramsLeft != null}
         <p class="amount">{view.lastCup ? 'Last cup' : `~${view.cupsLeft} cups`} · {Math.round(view.gramsLeft)} g left</p>
       {/if}
+      {#if view.state !== 'finished'}
+        <a class="brew-link" href={href(`/brew/${view.id}`)}>Brew this</a>
+      {/if}
       <BagActions {view} />
 
       {#if view.flavorTags.length}
@@ -192,5 +195,16 @@
   .danger {
     color: var(--danger);
     margin-top: 16px;
+  }
+  .brew-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 700;
+    text-decoration: none;
   }
 </style>

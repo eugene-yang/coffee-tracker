@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte'
   import Avatar from '../components/Avatar.svelte'
   import SyncDot from '../components/SyncDot.svelte'
+  import IdleScreen from '../components/IdleScreen.svelte'
   import { device, setDeviceUser } from '../lib/state/device.svelte'
   import { users } from '../lib/state/live.svelte'
   import { href, route } from '../lib/state/router.svelte'
@@ -47,6 +48,7 @@
   {/if}
 
   <main>{@render children()}</main>
+  <IdleScreen />
 </div>
 
 <style>

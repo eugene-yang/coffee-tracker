@@ -2,6 +2,11 @@
   import { device } from '../lib/state/device.svelte'
   import { users } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
+  import BrewShortcut from '../components/BrewShortcut.svelte'
+  import RecentBrews from '../components/RecentBrews.svelte'
+  import { shortcutsFor } from '../lib/state/shortcuts.svelte'
+
+  const shortcuts = $derived(shortcutsFor())
 
   const me = $derived(users.get(device.userId))
 </script>
@@ -22,9 +27,16 @@
     <p class="muted">Cups waiting for a rating show up here.</p>
   </section>
 
+  {#if shortcuts.length}
+    <section class="stack">
+      <h2>Brew again</h2>
+      {#each shortcuts as s (s.bagId + s.brew.method)}<BrewShortcut shortcut={s} />{/each}
+    </section>
+  {/if}
+
   <section class="stack">
     <h2>Recent</h2>
-    <p class="muted">Nothing brewed yet.</p>
+    <RecentBrews />
   </section>
 </div>
 
