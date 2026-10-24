@@ -31,10 +31,12 @@
     const name = newName.trim()
     if (!name) return
     const id = uuidv7()
-    await mutate('user', id, { name, color: newColor })
-    if (!device.userId) setDeviceUser(id)
+    const color = newColor
+    // Reset the form before awaiting so anything typed meanwhile isn't wiped
     newName = ''
-    newColor = COLORS[(COLORS.indexOf(newColor) + 1) % COLORS.length]
+    newColor = COLORS[(COLORS.indexOf(color) + 1) % COLORS.length]
+    if (!device.userId) setDeviceUser(id)
+    await mutate('user', id, { name, color })
   }
 
   async function saveName(id: string) {
