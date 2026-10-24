@@ -1,0 +1,39 @@
+name: coffee
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/app.Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ${COFFEE_DATA:-../data}:/data
+    environment:
+      # Used from M1 on (bag label extraction); Ollama keeps running where it is
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  caddy:
+    build:
+      context: .
+      dockerfile: caddy.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      COFFEE_HOST: ${COFFEE_HOST:?set COFFEE_HOST in deploy/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
