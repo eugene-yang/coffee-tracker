@@ -1,5 +1,5 @@
 <script lang="ts">
-  // More detail for one tasting: compass → flavors → note → profile → quality. Every tap saves.
+  // More detail for one tasting: profile → quality → compass → flavors → other notes. Every tap saves.
   // /rate/:brewId/:userId[/:tastingId] — without a tasting id, the first star starts a new tasting.
   import { onDestroy } from 'svelte'
   import Avatar from '../components/Avatar.svelte'
@@ -106,6 +106,21 @@
 
     <fieldset disabled={!tasting}>
       <section class="card stack">
+        <h2>Profile</h2>
+        <p class="help">How much of each — not how good.</p>
+        {#each PROFILE as def (def.field)}
+          <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
+        {/each}
+      </section>
+
+      <section class="card stack quality">
+        <h2>Quality</h2>
+        {#each QUALITY as def (def.field)}
+          <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
+        {/each}
+      </section>
+
+      <section class="card stack">
         <h2>Compass</h2>
         {#each COMPASS as def (def.field)}
           <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
@@ -144,7 +159,7 @@
       </section>
 
       <section class="card stack">
-        <h2>Note</h2>
+        <h2>Other notes</h2>
         {#if layout === 'phone'}
           <textarea rows="3" placeholder="Anything worth remembering" aria-label="Note" bind:value={note} oninput={() => {
             clearTimeout(noteTimer)
@@ -153,21 +168,6 @@
         {:else}
           <p class="muted">{tasting?.note || 'Add a note from your phone.'}</p>
         {/if}
-      </section>
-
-      <section class="card stack">
-        <h2>Profile</h2>
-        <p class="help">How much of each — not how good.</p>
-        {#each PROFILE as def (def.field)}
-          <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
-        {/each}
-      </section>
-
-      <section class="card stack quality">
-        <h2>Quality</h2>
-        {#each QUALITY as def (def.field)}
-          <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
-        {/each}
       </section>
     </fieldset>
 

@@ -184,7 +184,7 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 | `/bag/:id` | Bag detail incl. review state ("Looks right"), events, brews & ratings, coffee fields | 360px side panel over the grid: Brew again, Recipe…, Open / Freeze / Finish, ±g |
 | `/capture` | Camera immediately, up to 3 shots, background save | — |
 | `/brew/:id` | Pre-start (chips + params summary) → live timer → Done · drinkers (prefilled) → "Save as recipe" | Same, full screen, 160px timer |
-| `/rate/:brewId` | More detail (compass, tags, note, profile, quality) | Same, opened from the stars sheet |
+| `/rate/:brewId` | More detail (profile, quality, compass, tags, other notes) | Same, opened from the stars sheet |
 | `/settings` | Users, Equipment & recipes (grinders, brewers, recipes), thresholds, push, layout, sync | Users, sync, layout, thresholds (opened from the sync dot) |
 
 **Layouts**: `StationShell` (landscape, header 56 / shortcuts 80 / grid + side panel, 72px primary targets) vs. `PhoneShell` (bottom tabs Home · Inventory · Brew · Settings). Picked by viewport (≥ 900 px wide and landscape → station) with a per-device override in local storage. Screens are shared; shells differ.
@@ -255,7 +255,7 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 
 **M3 — Rating (M)**
 - Inline stars + temp chip on pending cards (phone home, station pending strip + stars sheet)
-- Full More detail: compass, tags (roaster-notes confirm chips), note, profile and quality scales (1–5, words at 1 / 3 / 5)
+- Full More detail: profile and quality scales (1–5, words at 1 / 3 / 5), compass, tags (roaster-notes confirm chips), other notes
 - Rate again as it cools (band change brings the card back; 5-min edit window)
 - Exit: every brew gets at least an overall rating from each drinker
 - As built (`web/src/lib/domain/tasting.ts`):
