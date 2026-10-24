@@ -140,11 +140,11 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
      - Thresholds are a user-editable setting (start: < 10 min Hot, 10–25 Warm, > 25 Cool)
      - Store both the suggested and chosen band → later compare against time since brew and retune thresholds
   3. "More detail" (the rate screen; all shipped in Phase 2), in this order:
-     - Compass: Sour↔Balanced↔Bitter, Weak↔Balanced↔Strong (dial-in hints), with helper text that "Sour" is a judgment, not the same as high acidity
-     - Flavor tags: roaster's notes first as one-tap confirm chips ("Roaster says: blueberry, cocoa"), then browse by flavor family
-     - Free note
      - Profile, each 1–5, words only at 1 / 3 / 5 (Low · Medium · High): aroma, acidity, sweetness, body, aftertaste
      - Quality, each 1–5, words only at 1 / 3 / 5, visually separate from Profile: balance (Unbalanced · OK · Harmonious), cleanness (Muddy · OK · Clean)
+     - Compass: Sour↔Balanced↔Bitter, Weak↔Balanced↔Strong (dial-in hints), with helper text that "Sour" is a judgment, not the same as high acidity
+     - Flavor tags: roaster's notes first as one-tap confirm chips ("Roaster says: blueberry, cocoa"), then browse by flavor family
+     - Other notes (free text)
      - Liking lives in the overall score; only balance and cleanness are judgments by nature
 - **Multiple tastings per brew** — per taster and per temperature, to track how a cup performs as it cools
   - After a tasting the card stays, muted, as "Rate again when Warm"; when the band changes it returns as "Warm now · 18 min ☆☆☆☆☆"
