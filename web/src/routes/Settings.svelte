@@ -1,5 +1,6 @@
 <script lang="ts">
   import Avatar from '../components/Avatar.svelte'
+  import PushSettings from '../components/PushSettings.svelte'
   import { mutate, remove } from '../lib/db/local'
   import { uuidv7 } from '../lib/db/uuid'
   import {
@@ -12,7 +13,7 @@
   import { device, setDeviceUser, setLayoutChoice, type LayoutChoice } from '../lib/state/device.svelte'
   import { DOSE_SETTING } from '../lib/state/inventory.svelte'
   import { settingValue, users } from '../lib/state/live.svelte'
-  import { syncNow, syncState } from '../lib/state/sync.svelte'
+  import { PREVIEW, syncNow, syncState } from '../lib/state/sync.svelte'
   import { href } from '../lib/state/router.svelte'
 
   const COLORS = ['#d39a6a', '#e6c36a', '#8fc2a0', '#86b3d9', '#b9a3e3', '#e39aa8']
@@ -181,6 +182,13 @@
       <span class="muted">Cool after {bands.warm_max_min} min.</span>
     </div>
   </section>
+
+  {#if !PREVIEW}
+    <section class="stack">
+      <h2>Notifications</h2>
+      <PushSettings />
+    </section>
+  {/if}
 
   <section class="stack">
     <h2>Beans</h2>

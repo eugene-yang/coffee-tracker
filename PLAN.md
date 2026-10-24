@@ -169,7 +169,7 @@ Single household, mostly append-only data → a small hand-rolled protocol.
 **API surface (complete list)**
 - `POST /api/sync/push`, `GET /api/sync/pull`
 - `PUT /api/photos/{id}`, `GET /api/photos/{id}`
-- `POST /api/push/subscribe`, `DELETE /api/push/subscribe`, `GET /api/push/vapid-key`
+- `POST /api/push/subscribe`, `DELETE /api/push/subscribe`, `GET /api/push/vapid-key`, `POST /api/push/test`
 - `GET /api/health`
 
 No per-entity REST endpoints — all data CRUD goes through sync.
@@ -267,6 +267,11 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 **M4 — Push + hardening (M)**
 - Web Push subscribe + scheduler; backups + restore test; sync edge cases (long offline, many photos)
 - Exit: a week with no sync bugs; restore from backup verified
+- As built:
+  - Push: the server makes its VAPID key on first start (`data/vapid_private.pem`, backed up). The scheduler reads the synced tables directly instead of keeping a job queue: every 30 s it reminds each subscribed drinker of a brew between `push_delay_min` (setting, default 5) and 2 h old that they haven't rated, once (`push_sent`); 404/410 drops the subscription, other failures aren't retried (the in-app card is still there). Settings → Notifications turns it on per device, sends a test, sets the delay; switching the device's person moves its subscription. The handler is `web/public/push-sw.js`, imported into the generated service worker
+  - Backups copy photos (incrementally; they never change) and the push key. `python -m app.backup restore` (`deploy/restore.sh`) checks the snapshot, keeps the replaced database and gives the database a new **epoch**
+  - Restore-safe sync: pull returns the epoch. A device that sees it change sends every local row back as `restore` ops (insert if missing, replace only with a newer `updated_at`, original timestamps kept) and pulls from 0, so its old cursor can't skip rows and nothing it has from after the backup is lost
+  - A photo the server fails on (5xx) stays queued without blocking the rest of the sync; running out of device storage shows the one blocking dialog
 
 **Then**: use it for a month (scope pitfall #7), re-scope, then Phase 3 insights and Phase 4 recommendations.
 

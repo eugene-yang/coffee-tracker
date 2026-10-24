@@ -1,6 +1,7 @@
 // Sync client: push the outbox, then pull rows changed since our cursor.
 // Pending local ops are re-applied on top of pulled rows so unsynced edits survive.
-import { SYNC_TABLES, applyOp, db, emit, setClockOffset, type Op, type Row, type TableName } from './local'
+import { SYNC_TABLES, applyOp, db, emit, nowIso, setClockOffset, type Op, type Row, type TableName } from './local'
+import { uuidv7 } from './uuid'
 
 export interface PushResult {
   op_id: string
@@ -13,14 +14,19 @@ export interface PullResponse {
   next: number
   has_more: boolean
   server_time: string
+  epoch?: number // changes when the server's database is restored from a backup
 }
 
 export interface Transport {
   push(ops: Op[]): Promise<{ results: PushResult[]; server_time: string }>
   pull(since: number): Promise<PullResponse>
-  /** Resolves true when stored, false when the server refuses the file for good (not an image). */
+  /** Resolves true when stored, false when the server refuses the file for good (not an image).
+   *  Throws ServerError when the server failed (keep the photo, retry later), anything else when unreachable. */
   uploadPhoto(id: string, blob: Blob): Promise<boolean>
 }
+
+/** The server answered but failed (5xx): not a reason to stop syncing everything else. */
+export class ServerError extends Error {}
 
 const API = `${import.meta.env.BASE_URL}api`
 
@@ -42,7 +48,7 @@ export const httpTransport: Transport = {
   async uploadPhoto(id, blob) {
     const res = await fetch(`${API}/photos/${id}`, { method: 'PUT', body: blob })
     if (res.status === 400) return false
-    if (!res.ok) throw new Error(`photo upload failed: ${res.status}`)
+    if (!res.ok) throw new ServerError(`photo upload failed: ${res.status}`)
     return true
   },
 }
@@ -52,7 +58,14 @@ export async function uploadPhotos(transport: Transport): Promise<void> {
   const d = await db()
   for (const id of await d.getAllKeys('photo_blob')) {
     const blob = await d.get('photo_blob', id)
-    if (blob && !(await transport.uploadPhoto(id, blob))) console.warn('sync: photo refused by server', id)
+    try {
+      if (blob && !(await transport.uploadPhoto(id, blob))) console.warn('sync: photo refused by server', id)
+    } catch (e) {
+      // One photo the server chokes on must not hold back every other change: keep it, retry next sync
+      if (!(e instanceof ServerError)) throw e
+      console.warn('sync: photo upload failed, will retry', id, e.message)
+      continue
+    }
     await d.delete('photo_blob', id)
     emit('photo_blob')
   }
@@ -77,11 +90,46 @@ export async function pushOutbox(transport: Transport): Promise<void> {
   }
 }
 
+/**
+ * The server was restored from a backup: send back every local row. The server keeps whichever copy
+ * is newer, so whatever this device has from after the backup is not lost.
+ */
+export async function healServer(transport: Transport): Promise<void> {
+  const d = await db()
+  let batch: Op[] = []
+  const flush = async () => {
+    if (!batch.length) return
+    const { results } = await transport.push(batch)
+    for (const r of results) if (r.status === 'rejected') console.warn('sync: restore op rejected', r.op_id, r.error)
+    batch = []
+  }
+  for (const table of SYNC_TABLES) {
+    for (const { id, seq: _seq, ...patch } of await d.getAll(table)) {
+      if (typeof patch.updated_at !== 'string') continue
+      batch.push({ op_id: uuidv7(), table, id, kind: 'restore', patch, client_ts: nowIso(), by: (patch.updated_by as string | null) ?? null })
+      if (batch.length >= PUSH_BATCH) await flush()
+    }
+  }
+  await flush()
+}
+
 export async function pullChanges(transport: Transport): Promise<void> {
   const d = await db()
   let cursor = ((await d.get('meta', 'cursor')) as number | undefined) ?? 0
   for (;;) {
     const res = await transport.pull(cursor)
+    if (res.epoch !== undefined) {
+      const known = (await d.get('meta', 'epoch')) as number | undefined
+      if (known !== undefined && known !== res.epoch) {
+        // Restored server: our cursor points past its history. Heal it, then pull everything again.
+        await healServer(transport)
+        await d.put('meta', 0, 'cursor')
+        await d.put('meta', res.epoch, 'epoch')
+        cursor = 0
+        continue
+      }
+      if (known === undefined) await d.put('meta', res.epoch, 'epoch')
+    }
     const touched = new Set<TableName>()
     const tx = d.transaction([...SYNC_TABLES, 'outbox', 'meta'], 'readwrite')
     const pending = await tx.objectStore('outbox').getAll()

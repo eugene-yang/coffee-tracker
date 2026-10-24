@@ -59,7 +59,8 @@ class Op(BaseModel):
     op_id: str = Field(min_length=1, max_length=64)
     table: str
     id: str = Field(min_length=1, max_length=64)
-    kind: Literal["upsert", "delete"]
+    # restore: a device sending back its full copy of a row after a server restore (see sync.restore_row)
+    kind: Literal["upsert", "delete", "restore"]
     patch: dict[str, Any] = Field(default_factory=dict)
     client_ts: str | None = None
     by: str | None = None  # user id of whoever made the change
@@ -90,3 +91,19 @@ class PullResponse(BaseModel):
     next: int
     has_more: bool
     server_time: str
+    epoch: int  # changes when the database is restored from a backup
+
+
+class PushKeys(BaseModel):
+    p256dh: str = Field(min_length=1, max_length=200)
+    auth: str = Field(min_length=1, max_length=100)
+
+
+class PushEndpoint(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=1000, pattern=r"^https://")
+
+
+class PushSubscribeRequest(PushEndpoint):
+    user_id: str = Field(min_length=1, max_length=64)
+    keys: PushKeys
+    device_label: str | None = Field(default=None, max_length=100)

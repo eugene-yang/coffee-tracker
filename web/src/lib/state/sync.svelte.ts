@@ -1,6 +1,6 @@
 // When to sync and what the header dot shows. No Background Sync on iOS, so we sync on
 // open, on return to the foreground, when the network comes back, after writes, and every minute.
-import { onChange, pendingCount } from '../db/local'
+import { isQuotaError, onChange, pendingCount, reportStorageFull } from '../db/local'
 import { syncOnce } from '../db/sync'
 
 export type SyncStatus = 'synced' | 'pending' | 'syncing' | 'offline' | 'preview'
@@ -58,6 +58,12 @@ export async function syncNow(): Promise<void> {
         syncState.error = null
         syncState.status = 'synced'
       } catch (e) {
+        // Pulled rows didn't fit on the device: that's the storage warning, not "server unreachable"
+        if (isQuotaError(e)) {
+          try {
+            reportStorageFull(e)
+          } catch {}
+        }
         // Server unreachable (away from home) or a transient error: data stays queued locally
         syncState.error = e instanceof Error ? e.message : String(e)
         syncState.status = 'offline'

@@ -40,6 +40,9 @@ def _apply(conn: sqlite3.Connection, op: Op) -> None:
     table = SYNC_TABLES.get(op.table)
     if table is None:
         raise OpRejected(f"unknown table {op.table!r}")
+    if op.kind == "restore":
+        restore_row(conn, table, op)
+        return
     if op.kind == "delete":
         values = {"deleted_at": now_iso()}
     else:
@@ -54,17 +57,18 @@ def write_row(
     values: dict,
     by: str | None,
     client_ts: str | None = None,
+    updated_at: str | None = None,
 ) -> int:
     """Insert or patch a synced row with a fresh seq; call inside a write transaction. Returns the seq."""
     now = now_iso()
     seq = next_seq(conn)
-    values = values | {"updated_at": now, "updated_by": by, "seq": seq}
+    values = values | {"updated_at": updated_at or now, "updated_by": by, "seq": seq}
     if conn.execute(f'SELECT 1 FROM "{table}" WHERE id = ?', (id,)).fetchone():
         # Patches carry only changed fields, so edits to different fields merge
         assignments = ", ".join(f'"{col}" = ?' for col in values)
         conn.execute(f'UPDATE "{table}" SET {assignments} WHERE id = ?', (*values.values(), id))
     else:
-        values |= {"id": id, "created_at": _created_at(client_ts, now)}
+        values = {"created_at": _created_at(client_ts, now)} | values | {"id": id}
         cols = ", ".join(f'"{col}"' for col in values)
         marks = ", ".join("?" for _ in values)
         conn.execute(f'INSERT INTO "{table}" ({cols}) VALUES ({marks})', tuple(values.values()))
@@ -84,10 +88,31 @@ def server_write(conn: sqlite3.Connection, table: str, id: str, values: dict) ->
         raise
 
 
-def _validate_patch(table: SyncTable, patch: dict) -> dict:
+# Timestamps a restore op carries over from the device's copy
+RESTORE_COLUMNS = ("created_at", "updated_at", "deleted_at", "updated_by")
+
+
+def restore_row(conn: sqlite3.Connection, table: SyncTable, op: Op) -> None:
+    """After a server restore, devices send back their copies of rows. Insert what the server lacks;
+    replace a row only with a newer copy (by updated_at), keeping the original timestamps so that
+    several devices sending the same rows converge on the newest one."""
+    stamps = {k: op.patch.get(k) for k in RESTORE_COLUMNS}
+    if not isinstance(stamps["updated_at"], str) or any(v is not None and not isinstance(v, str) for v in stamps.values()):
+        raise OpRejected("restore needs updated_at and string timestamps")
+    values = _validate_patch(table, {k: v for k, v in op.patch.items() if k not in RESTORE_COLUMNS}, restoring=True)
+    existing = conn.execute(f'SELECT updated_at FROM "{table.name}" WHERE id = ?', (op.id,)).fetchone()
+    if existing and existing["updated_at"] >= stamps["updated_at"]:
+        return  # the server's copy is as new or newer
+    values["deleted_at"] = stamps["deleted_at"]
+    if stamps["created_at"]:
+        values["created_at"] = stamps["created_at"]
+    write_row(conn, table.name, op.id, values, by=stamps["updated_by"] or op.by, updated_at=stamps["updated_at"])
+
+
+def _validate_patch(table: SyncTable, patch: dict, restoring: bool = False) -> dict:
     values = {}
     for col, value in patch.items():
-        if col in SYSTEM_COLUMNS or col in table.server_only:
+        if col in SYSTEM_COLUMNS or (col in table.server_only and not restoring):
             raise OpRejected(f"column {col!r} is managed by the server")
         if col in table.text:
             if value is not None and not isinstance(value, str):
