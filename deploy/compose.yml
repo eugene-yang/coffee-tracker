@@ -9,8 +9,10 @@ services:
     volumes:
       - ${COFFEE_DATA:-../data}:/data
     environment:
-      # Used from M1 on (bag label extraction); Ollama keeps running where it is
+      # Bag label reading; Ollama keeps running where it is
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      COFFEE_VLM_MODEL: ${COFFEE_VLM_MODEL:-qwen3.5:4b}
+      COFFEE_EXTRACTION: ${COFFEE_EXTRACTION:-on}
     extra_hosts:
       - host.docker.internal:host-gateway
 

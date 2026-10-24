@@ -1,19 +1,6 @@
 import uuid
 
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import create_app
-
-
-@pytest.fixture
-def client(tmp_path):
-    web = tmp_path / "web"
-    web.mkdir()
-    (web / "index.html").write_text("<!doctype html><title>Coffee</title>")
-    (web / "sw.js").write_text("// sw")
-    with TestClient(create_app(data_dir=tmp_path / "data", web_dir=web)) as c:
-        yield c
 
 
 def op(table="user", id=None, kind="upsert", **patch):
@@ -26,7 +13,8 @@ def push(client, *ops):
     return [res["status"] for res in r.json()["results"]]
 
 
-def pull(client, since=0, limit=500):
+def pull(client, since=None, limit=500):
+    since = client.base_seq if since is None else since
     r = client.get("/api/sync/pull", params={"since": since, "limit": limit})
     assert r.status_code == 200, r.text
     return r.json()
@@ -107,7 +95,7 @@ def test_pull_paginates_across_tables(client):
     for i in range(5):
         push(client, op(name=f"u{i}"))
         push(client, op(table="setting", id=f"s{i}", value=i))
-    seen, cursor = [], 0
+    seen, cursor = [], client.base_seq
     while True:
         data = pull(client, since=cursor, limit=3)
         seen += [r["row"]["seq"] for r in data["rows"]]
@@ -132,3 +120,18 @@ def test_frontend_fallback_and_cache_headers(client):
     assert client.get("/sw.js").headers["cache-control"] == "no-cache"
     assert client.get("/../../etc/passwd").text.startswith("<!doctype html>")
     assert client.get("/api/nope").status_code == 404
+
+
+def test_number_columns_and_server_only_columns(client):
+    bag = str(uuid.uuid4())
+    assert push(client, op(table="bag", id=bag, weight_g=250, review_state="needs_review")) == ["applied"]
+    assert push(client, op(table="bag", id=bag, weight_g="250")) == ["rejected"]
+    assert push(client, op(table="photo", uploaded="2026-01-01")) == ["rejected"]
+    assert pull(client)["rows"][0]["row"]["weight_g"] == 250
+
+
+def test_seed_aliases_are_synced(client):
+    rows = pull(client, since=0, limit=2000)["rows"]
+    aliases = {(r["row"]["kind"], r["row"]["alias"]): r["row"]["canonical"] for r in rows if r["table"] == "alias"}
+    assert aliases[("variety", "geisha")] == "Gesha"
+    assert aliases[("process", "fully washed")] == "Washed"

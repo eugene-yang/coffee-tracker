@@ -17,6 +17,14 @@ export const syncState = $state({
 
 const WRITE_DEBOUNCE_MS = 2000
 const INTERVAL_MS = 60_000
+const FAST_INTERVAL_MS = 10_000
+
+// Poll faster while the server is working on something we're waiting for (label reading)
+let waitingOnServer: () => boolean = () => false
+export function syncFasterWhile(fn: () => boolean): void {
+  waitingOnServer = fn
+}
+let lastTick = 0
 
 let running = false
 let again = false
@@ -69,7 +77,7 @@ export function requestSync(delayMs = WRITE_DEBOUNCE_MS): void {
 
 export function startSync(): void {
   onChange((table) => {
-    if (table !== 'outbox') return
+    if (table !== 'outbox' && table !== 'photo_blob') return
     refreshPending()
     requestSync()
   })
@@ -79,8 +87,13 @@ export function startSync(): void {
   window.addEventListener('online', () => syncNow())
   window.addEventListener('offline', () => (syncState.status = 'offline'))
   setInterval(() => {
-    if (document.visibilityState === 'visible') syncNow()
-  }, INTERVAL_MS)
+    if (document.visibilityState !== 'visible') return
+    const due = waitingOnServer() ? FAST_INTERVAL_MS : INTERVAL_MS
+    if (Date.now() - lastTick >= due - 500) {
+      lastTick = Date.now()
+      syncNow()
+    }
+  }, FAST_INTERVAL_MS)
   refreshPending()
   syncNow()
 }

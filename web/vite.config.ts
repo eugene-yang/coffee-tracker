@@ -33,6 +33,19 @@ export default defineConfig({
         navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        runtimeCaching: [
+          {
+            // Thumbnails never change for a given id: keep them for offline browsing
+            urlPattern: ({ url }) => url.pathname.includes('/api/photos/') && url.searchParams.get('size') === 'thumb',
+            handler: 'CacheFirst',
+            options: { cacheName: 'thumbs', expiration: { maxEntries: 800 } },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/api/photos/'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'photos', expiration: { maxEntries: 40 } },
+          },
+        ],
       },
     }),
   ],

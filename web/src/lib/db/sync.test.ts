@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db, initDb, listRows, mutate, pendingCount, remove, type Op, type Row } from './local'
+import { db, initDb, listRows, mutate, pendingCount, remove, savePhotoBlob, type Op, type Row } from './local'
 import { syncOnce, type PullResponse, type PushResult, type Transport } from './sync'
 
 // In-memory stand-in for the server's push/pull semantics
@@ -10,9 +10,19 @@ class FakeServer implements Transport {
   rows = new Map<string, { table: string; row: Row }>()
   reject = new Set<string>()
   offline = false
+  uploads: string[] = []
+  log: string[] = []
+
+  async uploadPhoto(id: string, blob: Blob) {
+    if (this.offline) throw new TypeError('Failed to fetch')
+    this.log.push(`upload:${id}`)
+    this.uploads.push(id)
+    return (await blob.text()) !== 'garbage'
+  }
 
   async push(ops: Op[]) {
     if (this.offline) throw new TypeError('Failed to fetch')
+    this.log.push('push')
     const results: PushResult[] = ops.map((op) => {
       if (this.applied.has(op.op_id)) return { op_id: op.op_id, status: 'duplicate' }
       if (this.reject.has(op.op_id)) return { op_id: op.op_id, status: 'rejected', error: 'nope' }
@@ -119,5 +129,30 @@ describe('sync', () => {
     await server.push(ops) // first attempt reached the server but the response was lost
     await syncOnce(server)
     expect(server.seq).toBe(1)
+  })
+})
+
+describe('photos', () => {
+  it('uploads captured photos before pushing the rows that reference them', async () => {
+    const server = new FakeServer()
+    await savePhotoBlob('p1', new Blob(['jpeg']))
+    await mutate('photo', 'p1', { bag_id: 'b1', position: 0 })
+    expect(await pendingCount()).toBe(2)
+    await syncOnce(server)
+    expect(server.log).toEqual(['upload:p1', 'push'])
+    expect(await pendingCount()).toBe(0)
+  })
+
+  it('keeps photos queued while offline and drops ones the server refuses', async () => {
+    const server = new FakeServer()
+    server.offline = true
+    await savePhotoBlob('p1', new Blob(['jpeg']))
+    await savePhotoBlob('bad', new Blob(['garbage']))
+    await expect(syncOnce(server)).rejects.toThrow()
+    expect(await pendingCount()).toBe(2)
+    server.offline = false
+    await syncOnce(server)
+    expect(server.uploads.sort()).toEqual(['bad', 'p1'])
+    expect(await pendingCount()).toBe(0)
   })
 })

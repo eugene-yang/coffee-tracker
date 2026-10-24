@@ -73,5 +73,10 @@ challenge, so nothing has to be exposed to the internet and no device needs a cu
    nightly from cron, e.g. `30 3 * * * /path/to/coffee-tracker/deploy/backup.sh`, and copy
    `data/` off the machine as part of your usual backups.
 
+Label reading uses the Ollama instance on the server (`OLLAMA_HOST`, model `COFFEE_VLM_MODEL`, default
+`qwen3.5:4b`). If Ollama is down, bags are still added and the review screen offers a retry; set
+`COFFEE_EXTRACTION=off` to turn it off. For local development without Ollama,
+`COFFEE_EXTRACTION=fake` answers every bag with the same sample label.
+
 Updating: `git pull && cd deploy && docker compose up -d --build`. Installed apps pick up the new
 version on their next launch.
