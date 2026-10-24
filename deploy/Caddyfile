@@ -1,0 +1,13 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$COFFEE_HOST} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		# Check the challenge TXT record on public DNS, not the UniFi local override
+		resolvers 1.1.1.1 1.0.0.1
+	}
+	encode zstd gzip
+	reverse_proxy app:8000
+}

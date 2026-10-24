@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+web/dist/
+web/dev-dist/
+web/test-results/
+web/playwright-report/
+
+# Runtime data
+data/
+server/data/
+deploy/.env
+server/.e2e-data/

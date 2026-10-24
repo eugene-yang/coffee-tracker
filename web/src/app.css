@@ -1,0 +1,148 @@
+:root {
+  --bg: #f7f5f2;
+  --surface: #ffffff;
+  --surface-2: #efebe6;
+  --text: #1d1b19;
+  --text-muted: #6b6560;
+  --border: #ddd6ce;
+  --accent: #9a5b2e;
+  --accent-text: #ffffff;
+  --ok: #3f8f5a;
+  --warn: #b7791f;
+  --off: #8a8580;
+  --danger: #b4443a;
+
+  --radius: 12px;
+  --gap: 12px;
+  --tap: 48px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #121212;
+    --surface: #1c1c1c;
+    --surface-2: #262626;
+    --text: #ededed;
+    --text-muted: #a3a3a3;
+    --border: #333333;
+    --accent: #d39a6a;
+    --accent-text: #121212;
+    --ok: #6fbf8b;
+    --warn: #e0b058;
+    --off: #8a8a8a;
+    --danger: #e07a70;
+  }
+}
+
+/* The station is always dark (LCD in a kitchen) with POS-sized targets */
+:root[data-theme='dark'],
+.station {
+  --bg: #121212;
+  --surface: #1c1c1c;
+  --surface-2: #262626;
+  --text: #ededed;
+  --text-muted: #a3a3a3;
+  --border: #333333;
+  --accent: #d39a6a;
+  --accent-text: #121212;
+  --ok: #6fbf8b;
+  --warn: #e0b058;
+  --off: #8a8a8a;
+  --danger: #e07a70;
+}
+
+.station {
+  --tap: 72px;
+  font-size: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+input[type='text'] {
+  min-height: var(--tap);
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+h2 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
