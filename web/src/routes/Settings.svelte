@@ -24,6 +24,7 @@
   import { PREVIEW, syncNow, syncState } from '../lib/state/sync.svelte'
   import { href } from '../lib/state/router.svelte'
   import EmojiPicker from '../components/EmojiPicker.svelte'
+  import ViewportReadout from '../components/ViewportReadout.svelte'
 
   const COLORS = ['#d39a6a', '#e6c36a', '#8fc2a0', '#86b3d9', '#b9a3e3', '#e39aa8']
   const LAYOUTS: { value: LayoutChoice; label: string }[] = [
@@ -270,6 +271,8 @@
       <button onclick={() => syncNow()}>Sync now</button>
     </div>
   </section>
+
+  {#if PREVIEW}<ViewportReadout />{/if}
 </div>
 
 <style>
