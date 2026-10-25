@@ -3,9 +3,9 @@
   // sheet with your name on it. Each avatar shows that person's latest stars.
   import Avatar from './Avatar.svelte'
   import StarsSheet from './StarsSheet.svelte'
+  import TempIcon from './TempIcon.svelte'
   import type { Brew } from '../lib/domain/types'
   import { brewerLabel } from '../lib/domain/brew'
-  import { TEMP_BAND_LABELS } from '../lib/domain/tasting'
   import { suggestTempBand } from '../lib/domain/tempBand'
   import { inventory } from '../lib/state/inventory.svelte'
   import { brewers, users } from '../lib/state/live.svelte'
@@ -22,7 +22,7 @@
       <div class="item" role="group" aria-label="Cup: {titleOf(c.brew)}">
         <span class="text">
           <span class="title">{titleOf(c.brew)}</span>
-          <span class="muted">{brewerLabel(c.brew, brewers.rows)} · {TEMP_BAND_LABELS[suggestTempBand(c.minutes, tastingState.thresholds)]} · {Math.round(c.minutes)}m</span>
+          <span class="muted">{brewerLabel(c.brew, brewers.rows)} · <TempIcon band={suggestTempBand(c.minutes, tastingState.thresholds)} size={16} word /> · {Math.round(c.minutes)}m</span>
         </span>
         <span class="who">
           {#each users.rows as u (u.id)}

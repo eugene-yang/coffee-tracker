@@ -22,7 +22,7 @@ Multiple people share one inventory; each has their own tastings and preferences
 - Layout is chosen by screen size, overridable per device in settings
 - Phone layout: bottom tabs Home · Inventory · Tastings · Settings (no Brew tab: brews start from a bag or Brew again; a "Brew in progress" banner leads back to a running timer)
   - Home = pending tastings (inline stars) → Brew again cards (max 3) → Recent
-  - Tastings = every rating, newest first: mine by default, everyone's or one person's on request
+  - Tastings = every rating, newest first, with one compact set of dropdowns: rated by (me by default · all · one person), brewed by, brewer, grinder
   - Bag page = Brew again on top → state and amount → the bag's brews with their ratings → details, with Edit (and label review) as a separate step
 - Station layout: home **is** the inventory; brews start from a bag; taps only, no typing
 - Timer is timestamp-based (stores step start times, derives elapsed) — iOS suspends PWAs on lock / app switch
@@ -140,6 +140,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
      - Five 64px star buttons
      - Not prompted at Done — the cup is too hot then
   2. **Cup temperature: Hot / Warm / Cool** — a chip on the card ("Warm · 14 min"), preselected from `minutes_after_brew`, tap cycles to override by feel
+     - Shown as a steaming-cup icon (three wisps Hot, one Warm, none Cool): with the word wherever a cup is being rated, icon only in Tastings and bag history
      - Thresholds are a user-editable setting (start: < 10 min Hot, 10–25 Warm, > 25 Cool)
      - Store both the suggested and chosen band → later compare against time since brew and retune thresholds
   3. "More detail" (the rate screen; all shipped in Phase 2), in this order:

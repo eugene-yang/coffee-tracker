@@ -118,7 +118,17 @@ test('rating: anyone rates any cup, every tap a new rating, explicit edit, no co
 
   // Tastings tab: mine by default; a rating opens to edit, the bag name opens the bag and its history
   await page.getByRole('link', { name: 'Tastings', exact: true }).click()
-  await expect(page.getByRole('radio', { name: 'Mine' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByLabel('Rated by')).toHaveValue('mine')
+  await expect(page.locator('.entry')).toHaveCount(4)
+  // One row of dropdowns: who rated, who brewed, brewer, grinder; temperature as an icon only
+  await expect(page.locator('.entry').first().getByRole('img', { name: /^(Hot|Warm|Cool)$/ })).toBeVisible()
+  await page.getByLabel('Brewed by').selectOption({ label: 'Brewed: Bo' })
+  await expect(page.locator('.entry')).toHaveCount(4)
+  await page.getByLabel('Brewed by').selectOption({ label: 'Brewed: Me' })
+  await expect(page.getByText('No ratings match these filters.')).toBeVisible()
+  await expect(page.getByText('0 ratings')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear' }).click()
+  await expect(page.getByLabel('Brewed by')).toHaveValue('any')
   await expect(page.locator('.entry')).toHaveCount(4)
   await page.locator('.entry').filter({ hasText: 'Warm Kii' }).first().getByRole('link', { name: 'Warm Kii', exact: true }).click()
   await expect(page).toHaveURL(/\/bag\/b-warm$/)

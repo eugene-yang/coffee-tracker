@@ -47,8 +47,21 @@ class TastingState {
 
 export const tastingState = new TastingState()
 
-/** Whose ratings the Tastings tab and bag history show: mine (default), everyone's, or one person's id. Kept for the session. */
-export const ratingFilter = $state<{ who: 'mine' | 'everyone' | string }>({ who: 'mine' })
+/**
+ * Tastings filters, kept for the session. `who` (rated by: mine — the default —, everyone's, or one
+ * person's id) is shared with bag history; who brewed and with what apply to the Tastings tab.
+ */
+export const ratingFilter = $state<{ who: 'mine' | 'everyone' | string; brewedBy: string; brewer: string; grinder: string }>({
+  who: 'mine',
+  brewedBy: 'any',
+  brewer: 'any',
+  grinder: 'any',
+})
+
+export function clearRatingFilter(): void {
+  Object.assign(ratingFilter, { who: 'mine', brewedBy: 'any', brewer: 'any', grinder: 'any' })
+}
+
 
 export function ratingMatches(t: Tasting, who: string, me: string | null): boolean {
   return who === 'everyone' || t.taster_id === (who === 'mine' ? me : who)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_TEMP_BANDS } from './tempBand'
-import { cycleBand, latestTastings, overallLabel, pendingCups, pendingTastings, stepName, toggleTag, PROFILE } from './tasting'
-import type { Brew, Tasting } from './types'
+import { brewMatches, cycleBand, latestTastings, overallLabel, pendingCups, pendingTastings, stepName, toggleTag, PROFILE } from './tasting'
+import type { Brew, Brewer, Tasting } from './types'
 
 const NOW = Date.parse('2026-10-24T09:00:00Z')
 const ago = (min: number) => new Date(NOW - min * 60_000).toISOString()
@@ -63,6 +63,27 @@ describe('pendingCups', () => {
   it('keeps every rating separate, even two at the same temperature', () => {
     const latest = latestTastings([tasting('a', 'ana', 9, 'hot', 3), tasting('a', 'ana', 4, 'hot', 4)])
     expect(latest.get('a:ana')?.overall).toBe(4)
+  })
+})
+
+describe('brewMatches', () => {
+  const v60 = { id: 'v60', method: 'pour_over' } as Brewer
+  const dedica = { id: 'dedica', method: 'espresso' } as Brewer
+  const any = { brewedBy: 'any', brewer: 'any', grinder: 'any' }
+  const b = (patch: Partial<Brew>) => ({ ...brew('a', 5), brewer_user_id: 'bo', brewer_id: 'v60', grinder_id: 'c40', ...patch }) as Brew
+
+  it('filters by who brewed it, brewer and grinder', () => {
+    expect(brewMatches(b({}), any, [v60])).toBe(true)
+    expect(brewMatches(b({}), { ...any, brewedBy: 'bo' }, [v60])).toBe(true)
+    expect(brewMatches(b({}), { ...any, brewedBy: 'ana' }, [v60])).toBe(false)
+    expect(brewMatches(b({}), { ...any, brewer: 'dedica' }, [v60, dedica])).toBe(false)
+    expect(brewMatches(b({}), { ...any, grinder: 'c40', brewer: 'v60' }, [v60])).toBe(true)
+    expect(brewMatches(b({}), { ...any, grinder: 'df64' }, [v60])).toBe(false)
+  })
+
+  it('matches older brews without a brewer by their method', () => {
+    expect(brewMatches(b({ brewer_id: null }), { ...any, brewer: 'v60' }, [v60, dedica])).toBe(true)
+    expect(brewMatches(b({ brewer_id: null }), { ...any, brewer: 'dedica' }, [v60, dedica])).toBe(false)
   })
 })
 

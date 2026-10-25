@@ -1,6 +1,6 @@
 <script lang="ts">
   // "Warm · 14 min": suggested from minutes since brewing (Settings), a tap cycles Hot → Warm → Cool by feel
-  import { TEMP_BAND_LABELS } from '../lib/domain/tasting'
+  import TempIcon from './TempIcon.svelte'
   import type { TempBand } from '../lib/domain/tempBand'
 
   let {
@@ -12,7 +12,7 @@
 </script>
 
 <button class="temp {band}" title="Cup temperature — tap to change" onclick={oncycle}
-  >{TEMP_BAND_LABELS[band]} · {Math.round(minutes)}{compact ? 'm' : ' min'}</button
+  ><TempIcon {band} word /> · {Math.round(minutes)}{compact ? 'm' : ' min'}</button
 >
 
 <style>

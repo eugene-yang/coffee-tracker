@@ -4,8 +4,9 @@
   import MethodIcon from './MethodIcon.svelte'
   import Stars from './Stars.svelte'
   import TempChip from './TempChip.svelte'
+  import TempIcon from './TempIcon.svelte'
   import { brewerLabel } from '../lib/domain/brew'
-  import { TEMP_BAND_LABELS, overallLabel, type PendingTasting } from '../lib/domain/tasting'
+  import { overallLabel, type PendingTasting } from '../lib/domain/tasting'
   import { inventory } from '../lib/state/inventory.svelte'
   import { brewers, users } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
@@ -47,7 +48,7 @@
   {:else if p.last}
     <p class="last">
       <span class="lit">{'★'.repeat(p.last.overall ?? 0)}</span>
-      {overallLabel(p.last.overall)} · {TEMP_BAND_LABELS[p.last.temp_band ?? 'hot']} · {timeAgo(p.last.rated_at, tastingState.now)}{p.count > 1
+      {overallLabel(p.last.overall)} · <TempIcon band={p.last.temp_band} word /> · {timeAgo(p.last.rated_at, tastingState.now)}{p.count > 1
         ? ` · ${p.count} ratings`
         : ''}
     </p>

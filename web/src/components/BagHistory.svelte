@@ -4,7 +4,8 @@
   import Avatar from './Avatar.svelte'
   import WhoFilter from './WhoFilter.svelte'
   import { brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
-  import { TEMP_BAND_LABELS, overallLabel } from '../lib/domain/tasting'
+  import TempIcon from './TempIcon.svelte'
+  import { overallLabel } from '../lib/domain/tasting'
   import { device } from '../lib/state/device.svelte'
   import { brewers, brews, grinders, tastings, users } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
@@ -39,7 +40,7 @@
       {#each ratingsOf(b.id) as t (t.id)}
         <a class="rating" href={href(rateLink(b.id, t.taster_id, t.id))}>
           <Avatar user={users.get(t.taster_id)} size={20} />
-          <span><span class="lit">{'★'.repeat(t.overall ?? 0)}</span> {overallLabel(t.overall)} · {TEMP_BAND_LABELS[t.temp_band ?? 'hot']}{t.minutes_after_brew != null
+          <span><span class="lit">{'★'.repeat(t.overall ?? 0)}</span> {overallLabel(t.overall)} <TempIcon band={t.temp_band} />{t.minutes_after_brew != null
               ? ` · ${Math.round(t.minutes_after_brew)} min`
               : ''}{t.note ? ` · “${t.note}”` : ''}</span>
         </a>

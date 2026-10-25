@@ -1,6 +1,6 @@
 // Rating logic: pending-tasting cards (anyone rates any cup, as often as they like), scales and tags.
 import { suggestTempBand, type TempBand, type TempBandThresholds } from './tempBand'
-import type { Brew, Tasting, TastingTag } from './types'
+import type { Brew, Brewer, Tasting, TastingTag } from './types'
 
 export const OVERALL_LABELS = ["Wouldn't finish", 'Meh', 'Good', 'Great', 'Memorable'] as const
 
@@ -102,6 +102,22 @@ export function pendingCups(brews: Brew[], tastings: Tasting[], now: number, thr
     out.push({ brew, minutes, suggested: suggestTempBand(minutes, thresholds), latest: mine })
   }
   return out.sort((a, b) => b.brew.brewed_at.localeCompare(a.brew.brewed_at))
+}
+
+export interface BrewFilter {
+  brewedBy: string // user id, or 'any'
+  brewer: string // brewer id, or 'any'
+  grinder: string // grinder id, or 'any'
+}
+
+/** Who brewed it and with which brewer / grinder; older brews without a brewer match their brewer's method. */
+export function brewMatches(b: Brew, f: BrewFilter, owned: Brewer[]): boolean {
+  const brewer = owned.find((x) => x.id === f.brewer)
+  return (
+    (f.brewedBy === 'any' || b.brewer_user_id === f.brewedBy) &&
+    (f.brewer === 'any' || b.brewer_id === f.brewer || (!b.brewer_id && !!brewer && b.method === brewer.method)) &&
+    (f.grinder === 'any' || b.grinder_id === f.grinder)
+  )
 }
 
 // ---- Detail scales: all 1–5, words only at 1 / 3 / 5 --------------------------------

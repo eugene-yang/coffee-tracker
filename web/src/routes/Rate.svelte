@@ -8,9 +8,10 @@
   import Scale from '../components/Scale.svelte'
   import Stars from '../components/Stars.svelte'
   import TempChip from '../components/TempChip.svelte'
+  import TempIcon from '../components/TempIcon.svelte'
   import { brewerLabel } from '../lib/domain/brew'
   import { FLAVOR_FAMILIES, flavorTag } from '../lib/domain/flavors'
-  import { PROFILE, QUALITY, TEMP_BAND_LABELS, cycleBand, minutesSince, overallLabel } from '../lib/domain/tasting'
+  import { PROFILE, QUALITY, cycleBand, minutesSince, overallLabel } from '../lib/domain/tasting'
   import { suggestTempBand } from '../lib/domain/tempBand'
   import type { Tasting } from '../lib/domain/types'
   import { currentLayout, device } from '../lib/state/device.svelte'
@@ -184,7 +185,7 @@
         <div class="rating" class:current={t.id === tasting?.id}>
           <Avatar user={who} size={28} />
           <span class="text">
-            <span><span class="lit">{'★'.repeat(t.overall ?? 0)}</span> {overallLabel(t.overall)} · {TEMP_BAND_LABELS[t.temp_band ?? 'hot']}</span>
+            <span><span class="lit">{'★'.repeat(t.overall ?? 0)}</span> {overallLabel(t.overall)} · <TempIcon band={t.temp_band} word /></span>
             <span class="muted">{who?.name ?? '?'} · {dateTime(t.rated_at)}{t.minutes_after_brew != null ? ` · ${Math.round(t.minutes_after_brew)} min after brewing` : ''}</span>
           </span>
           {#if t.id !== tasting?.id}<a href={href(rateLink(brewId, t.taster_id, t.id))}>Edit</a>{/if}
