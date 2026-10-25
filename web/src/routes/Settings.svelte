@@ -18,11 +18,12 @@
     type NewBagState,
     type RestWindow,
   } from '../lib/domain/inventory'
-  import { device, setDeviceUser, setLayoutChoice, type LayoutChoice } from '../lib/state/device.svelte'
+  import { currentLayout, device, setDeviceUser, setLayoutChoice, type LayoutChoice } from '../lib/state/device.svelte'
   import { DOSE_SETTING } from '../lib/state/inventory.svelte'
   import { settingValue, users } from '../lib/state/live.svelte'
   import { PREVIEW, syncNow, syncState } from '../lib/state/sync.svelte'
   import { href } from '../lib/state/router.svelte'
+  import EmojiPicker from '../components/EmojiPicker.svelte'
 
   const COLORS = ['#d39a6a', '#e6c36a', '#8fc2a0', '#86b3d9', '#b9a3e3', '#e39aa8']
   const LAYOUTS: { value: LayoutChoice; label: string }[] = [
@@ -31,8 +32,10 @@
     { value: 'station', label: 'Station' },
   ]
 
+  const layout = $derived(currentLayout())
   let newName = $state('')
   let newColor = $state(COLORS[0])
+  let newEmoji = $state<string | null>(null)
   let editingId = $state<string | null>(null)
   let editName = $state('')
 
@@ -46,9 +49,11 @@
     const color = newColor
     // Reset the form before awaiting so anything typed meanwhile isn't wiped
     newName = ''
+    const avatar = newEmoji
     newColor = COLORS[(COLORS.indexOf(color) + 1) % COLORS.length]
+    newEmoji = null
     if (!device.userId) setDeviceUser(id)
-    await mutate('user', id, { name, color })
+    await mutate('user', id, { name, color, avatar })
   }
 
   async function saveName(id: string) {
@@ -128,6 +133,7 @@
               saveName(user.id)
             }}
           >
+            <Avatar {user} size={36} />
             <input type="text" bind:value={editName} aria-label="Name" />
             <button class="primary" type="submit">Save</button>
             <button type="button" onclick={() => removeUser(user.id)}>Remove</button>
@@ -143,6 +149,7 @@
               ></button>
             {/each}
           </div>
+          <EmojiPicker value={user.avatar} typing={layout === 'phone'} onpick={(avatar) => mutate('user', user.id, { avatar })} />
         {:else}
           <button
             class="person"
@@ -175,6 +182,13 @@
             ></button>
           {/each}
         </div>
+        {#if newName.trim()}
+          <div class="row new-preview">
+            <Avatar user={{ id: '', name: newName, color: newColor, avatar: newEmoji, created_at: '', updated_at: '', deleted_at: null }} size={36} />
+            <span class="muted">Pick an emoji (optional)</span>
+          </div>
+          <EmojiPicker value={newEmoji} typing={layout === 'phone'} onpick={(e) => (newEmoji = e)} />
+        {/if}
       </form>
     </div>
   </section>
@@ -302,6 +316,9 @@
   }
   .swatch.selected {
     border-color: var(--text);
+  }
+  .new-preview {
+    gap: 10px;
   }
   .person {
     display: flex;

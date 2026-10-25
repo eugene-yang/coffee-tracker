@@ -8,19 +8,24 @@
   import Capture from './routes/Capture.svelte'
   import Toast from './components/Toast.svelte'
   import StorageFull from './components/StorageFull.svelte'
-  import Brew from './routes/Brew.svelte'
+  import Tastings from './routes/Tastings.svelte'
   import Settings from './routes/Settings.svelte'
   import Equipment from './routes/Equipment.svelte'
   import BrewScreen from './routes/BrewScreen.svelte'
   import Rate from './routes/Rate.svelte'
   import { currentLayout } from './lib/state/device.svelte'
-  import { route } from './lib/state/router.svelte'
+  import { replace, route } from './lib/state/router.svelte'
 
   // Registers the service worker; autoUpdate swaps in new versions on next load
   useRegisterSW({ immediate: true })
 
   const layout = $derived(currentLayout())
   const section = $derived(route.path.split('/')[1] || 'home')
+
+  // The Brew tab is gone: brews start from a bag or Brew again; old /brew links land on Home
+  $effect(() => {
+    if (route.path.replace(/\/$/, '') === '/brew') replace('/')
+  })
 </script>
 
 {#snippet page()}
@@ -36,8 +41,8 @@
     <Rate />
   {:else if section === 'brew' && route.path.split('/')[2]}
     <BrewScreen />
-  {:else if section === 'brew'}
-    <Brew />
+  {:else if section === 'tastings'}
+    <Tastings />
   {:else if section === 'inventory' || (section === 'home' && layout === 'station')}
     <Inventory />
   {:else}

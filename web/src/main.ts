@@ -7,8 +7,10 @@ import { startRouter } from './lib/state/router.svelte'
 import { startSync, syncFasterWhile } from './lib/state/sync.svelte'
 import { bags, extractions } from './lib/state/live.svelte'
 import { refreshPushOwner } from './lib/push'
+import { trackViewportGap } from './lib/viewport'
 
 setActor(() => device.userId)
+trackViewportGap()
 // Ask the browser not to evict local data (installed Home Screen apps are exempt anyway)
 navigator.storage?.persist?.().catch(() => {})
 startRouter()

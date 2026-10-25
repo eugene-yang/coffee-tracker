@@ -1,26 +1,31 @@
 <script lang="ts">
-  // Station: one person's rating, their name large so the right person rates. Closes 1.5 s after a star.
+  // Station: one person's rating of a cup, their name large so the right person rates. Each star tap
+  // is a new rating; their last one is shown with Edit. Closes 1.5 s after a star.
   import { onDestroy } from 'svelte'
   import Avatar from './Avatar.svelte'
   import Stars from './Stars.svelte'
   import TempChip from './TempChip.svelte'
-  import { methodLabel } from '../lib/domain/brew'
-  import type { PendingTasting } from '../lib/domain/tasting'
+  import TempIcon from './TempIcon.svelte'
+  import { brewerLabel } from '../lib/domain/brew'
+  import { latestTastings, minutesSince, overallLabel } from '../lib/domain/tasting'
+  import type { Brew } from '../lib/domain/types'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { users } from '../lib/state/live.svelte'
+  import { brewers, tastings, users } from '../lib/state/live.svelte'
   import { navigate } from '../lib/state/router.svelte'
+  import { timeAgo } from '../lib/state/shortcuts.svelte'
   import { rateLink, ratedToast, tastingState } from '../lib/state/tastings.svelte'
 
-  let { p, onclose }: { p: PendingTasting; onclose: () => void } = $props()
+  let { brew, userId, onclose }: { brew: Brew; userId: string; onclose: () => void } = $props()
 
-  const user = $derived(users.get(p.userId))
-  const title = $derived(inventory.byId.get(p.brew.bag_id)?.title ?? 'Bag')
+  const user = $derived(users.get(userId))
+  const title = $derived(inventory.byId.get(brew.bag_id)?.title ?? 'Bag')
+  const last = $derived(latestTastings(tastings.rows).get(`${brew.id}:${userId}`))
 
   let closing: ReturnType<typeof setTimeout> | undefined
   onDestroy(() => clearTimeout(closing))
 
   async function rate(n: number) {
-    const { undo } = await tastingState.rate(p, n)
+    const { undo } = await tastingState.rate(brew, userId, n)
     ratedToast(user?.name ?? '', n, undo)
     clearTimeout(closing)
     closing = setTimeout(onclose, 1500)
@@ -36,19 +41,26 @@
       <span class="name">{user?.name ?? '?'}</span>
       <button class="close" aria-label="Close" onclick={onclose}>✕</button>
     </div>
-    <p class="muted">{title} · {methodLabel(p.brew.method)}</p>
+    <p class="muted">{title} · {brewerLabel(brew, brewers.rows)}</p>
+    {#if last}
+      <p class="last">
+        Last: <span class="lit">{'★'.repeat(last.overall ?? 0)}</span>
+        {overallLabel(last.overall)} · <TempIcon band={last.temp_band} word /> · {timeAgo(last.rated_at, tastingState.now)}
+        <button class="edit" onclick={() => navigate(rateLink(brew.id, userId, last.id))}>Edit</button>
+      </p>
+    {/if}
     <div class="row">
-      <TempChip band={tastingState.bandOf(p)} minutes={p.minutes} now={p.state === 'again'} oncycle={() => tastingState.cycleBand(p)} />
+      <TempChip band={tastingState.bandFor(brew, userId)} minutes={minutesSince(brew.brewed_at, tastingState.now)} oncycle={() => tastingState.cycle(brew, userId)} />
     </div>
-    <Stars value={p.state === 'editing' ? p.last?.overall : null} size={72} label="{user?.name}'s stars" onrate={rate} />
-    <button class="detail" onclick={() => navigate(rateLink(p))}>More detail</button>
+    <Stars value={null} size={72} label="{user?.name}'s stars" onrate={rate} />
+    <button class="detail" onclick={() => navigate(rateLink(brew.id, userId))}>More detail</button>
   </div>
 </div>
 
 <style>
   .backdrop {
     position: fixed;
-    inset: 0;
+    inset: 0 0 calc(0px - var(--viewport-gap));
     z-index: 15;
     background: rgb(0 0 0 / 0.6);
     display: flex;
@@ -87,5 +99,18 @@
   }
   .detail {
     min-height: 56px;
+  }
+  .last {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .lit {
+    color: var(--accent);
+  }
+  .edit {
+    min-height: 56px;
+    margin-left: auto;
   }
 </style>

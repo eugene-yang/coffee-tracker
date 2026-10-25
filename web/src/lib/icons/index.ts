@@ -1,5 +1,6 @@
 // 24 px single-stroke method icons; drawn with currentColor so they follow text color.
 import type { Method } from '../domain/brew'
+import type { TempBand } from '../domain/tempBand'
 
 const P = (d: string) => `<path d="${d}"/>`
 
@@ -15,4 +16,18 @@ const PATHS: Record<Method, string> = {
 export function methodIconSvg(method: Method | string | null | undefined, size = 24): string {
   const paths = PATHS[(method as Method) in PATHS ? (method as Method) : 'other']
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`
+}
+
+// Cup temperature: a mug with three wisps of steam (Hot), one (Warm) or none (Cool) — no snowflake,
+// which already means a frozen bag
+const MUG = P('M5 11h11v4.5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z') + P('M16 12.5h1.5a2 2 0 0 1 0 4H16')
+const STEAM = (x: number) => P(`M${x} 3.5c-1 1.2 1 2.3 0 4.5`)
+const TEMP_PATHS: Record<TempBand, string> = {
+  hot: MUG + STEAM(7.5) + STEAM(10.5) + STEAM(13.5),
+  warm: MUG + STEAM(10.5),
+  cool: MUG,
+}
+
+export function tempIconSvg(band: TempBand, size = 18): string {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TEMP_PATHS[band]}</svg>`
 }

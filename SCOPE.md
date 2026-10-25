@@ -20,8 +20,10 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Devices & layouts
 - The phone can do everything; the station leaves out phone-only tasks (capture, review, history) to stay simple
 - Layout is chosen by screen size, overridable per device in settings
-- Phone layout: bottom tabs Home · Inventory · Brew · Settings
-  - Home = pending tastings (inline stars) → Brew again cards (max 3) → Recent (replaces a history screen)
+- Phone layout: bottom tabs Home · Inventory · Tastings · Settings (no Brew tab: brews start from a bag or Brew again; a "Brew in progress" banner leads back to a running timer)
+  - Home = pending tastings (inline stars) → Brew again cards (max 3) → Recent
+  - Tastings = every rating, newest first, with one compact set of dropdowns: rated by (me by default · all · one person), brewed by, brewer, grinder
+  - Bag page = Brew again on top → state and amount → the bag's brews with their ratings → details, with Edit (and label review) as a separate step
 - Station layout: home **is** the inventory; brews start from a bag; taps only, no typing
 - Timer is timestamp-based (stores step start times, derives elapsed) — iOS suspends PWAs on lock / app switch
 - Audio cue for timer steps (unlocked by the Start tap); no vibration on iOS, so always pair with a visual cue
@@ -47,14 +49,14 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Users
 - Shared inventory (coffees, bags, equipment, recipes); per-person brews, tastings, preferences
 - No passwords (trusted LAN): profile picker; each device remembers a default user
+- Each person has a color and, optionally, an emoji avatar (picked from a grid of long-supported emoji, or typed on a phone); without one, the avatar shows their initial
   - Phone defaults to its owner
   - Station: **who's brewing** is a sticky avatar in the header (keeps the last brewer; tap to switch, +2 taps), shown large on the idle screen so a wrong attribution is obvious; editable on the brew afterwards
-- A brew has one brewer and **zero or more tasters** — a shared carafe can be rated by everyone
-  - **Who's drinking** is prefilled from this brewer's last brew and confirmed with the Done tap ("Done · Eugene + Ana"); tap a chip to change
-  - Each taster gets a pending-tasting card / push on their own phone
-  - On the station, tap an avatar in the pending strip → stars sheet with that person's name at 32px, closes 1.5 s after a tap, with undo
-- Anyone can brew for anyone — the brewer and the tasters are independent
-- **Brew again** defaults to the current user's last brew for this bag × method, falls back to anyone's
+- A brew has one brewer; **anyone can rate any cup** — no "who's drinking" step, so one brew can collect ratings from several people
+  - Every recent cup is on each person's pending list; the push reminder goes to the brewer only
+  - On the station, each recent cup shows everyone's avatar (with their latest stars) in the pending strip; tap one → stars sheet with that person's name at 32px, closes 1.5 s after a tap, with undo
+- No brewing or rating until the device has a person (phone: Settings; station: Who's brewing)
+- **Brew again** defaults to the current user's last brew for this bag × brewer (older brews without a brewer match by method), falls back to anyone's
 - Push subscriptions are per user × device
 - Ratings are personal scales — compare within a person, not raw scores across people
 - Every device syncs all users' data (small)
@@ -80,15 +82,16 @@ Multiple people share one inventory; each has their own tastings and preferences
   - Roaster, name, roast date, weight first; the rest collapsed
   - One **"Looks right"** button accepts everything; VLM-filled fields carry a dot until confirmed
   - Needs-review bags are brewable right away as "Untitled · Oct 21"
-- Capture opens the camera immediately (or "From photos" picks up to 3 from the library); after each shot "Add another · Done" (max 3); saves in the background
+- One **Add bags** button (the system picker offers camera, photo library and files); each photo picked is one bag, so several bags can be added at once. A single photo goes on to "Add another · Done" for the back / sticker (max 3); saves in the background
 - Autocomplete + aliases for roaster / process / variety / origin (Gesha = Geisha, Fully Washed = Washed)
 - Store raw VLM output, model, prompt version, and which fields the user corrected
 - Bag status: Resting / Open / Frozen / Finished; grams remaining (derived, manual adjust as an event)
   - New bags go straight into the freezer by default (setting: Freezer · Shelf); freezer time doesn't count toward age
+  - Frozen bags are regular stock: brewed straight from the freezer (the rest goes back), so they're listed and pickable like any other
 
 ### Inventory browsing — the most-used feature
 Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIEW.md` §2.
-- **Sections** (only shown when non-empty): Needs review (phone, pinned) · Open · Ready (unopened, past rest window) · Resting · Frozen (collapsed, count) · Finished (hidden; greyed in search results only)
+- **Sections** (only shown when non-empty): Needs review (phone, pinned) · Open · Ready (unopened, past rest window) · Resting · Frozen (count; never collapsed) · Finished (hidden; greyed in search results only)
 - **Default sort**: Open → least left first (finish bags); Ready → oldest effective age first; Resting → soonest ready first
   - "Sort" chip: Recently added · Roast date · My rating · Roaster A–Z
 - **Tile**: square bag-front thumb · roaster (small caps) · coffee name (max 2 lines) · `Origin · Process` · freshness bar + "Day 12" · **"~4 cups"** left (grams in small text) · my avg rating · one reserved line for "why it matched" (later "why recommended")
@@ -109,7 +112,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
 - Equipment, added from settings (one grinder today, more later):
   - **Grinder**: name, setting format hint (numbers, clicks, `2.3.1`…)
   - **Method** — fixed list with an icon each: Pour-over, Hario Switch, AeroPress, Espresso, Siphon, Other
-  - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name, method, filter as free text
+  - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name (defaults to the brewer picked), method, filter as free text
   - Icons: no open-license set covers all five methods → small custom line-icon SVG set drawn in-house (inline, `currentColor`, works in dark theme); brewers show their method icon by default
   - Brewer pictures: **illustrations created by an agent at development time** for the equipment owned today (Pour-over drippers, Hario Switch, AeroPress, Espresso, Siphon), in one consistent house style
     - Shipped as static SVG assets with the app (theme colors via CSS variables, dark-theme friendly, small, offline)
@@ -125,7 +128,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - Recipes are mostly created via **"Save as recipe"** after a brew; managed under Settings → Equipment & recipes
 - **Brews start from a bag** (no separate new-brew wizard): bag → **Brew again** (last brew for this bag × method, incl. grind setting) as the primary action; "Recipe…" / freestyle as secondary
   - Station also shows ↻ Brew again shortcuts for the current brewer above the inventory grid
-- Live brew screen has a pre-start state: method / brewer chips preselected, recipe chip, params summary `15 g · 250 g · 22 · 94°` — tap one for a stepper
+- Live brew screen has a pre-start state: the household's own brewers (and grinders, when more than one) preselected — never the generic method list — recipe chip, params summary `15 g · 250 g · 22 · 94°` — tap one for a stepper
 - Brew deviates freely from its recipe — the brew keeps its own snapshot
 - Timer: steps with times become cues; otherwise a plain stopwatch with laps
 - Espresso is a preset of the same live brew screen (yield, time, "Pull another" dial-in loop), not separate screens
@@ -138,18 +141,20 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
      - Five 64px star buttons
      - Not prompted at Done — the cup is too hot then
   2. **Cup temperature: Hot / Warm / Cool** — a chip on the card ("Warm · 14 min"), preselected from `minutes_after_brew`, tap cycles to override by feel
+     - Shown as a steaming-cup icon (three wisps Hot, one Warm, none Cool): with the word wherever a cup is being rated, icon only in Tastings and bag history
      - Thresholds are a user-editable setting (start: < 10 min Hot, 10–25 Warm, > 25 Cool)
      - Store both the suggested and chosen band → later compare against time since brew and retune thresholds
   3. "More detail" (the rate screen; all shipped in Phase 2), in this order:
      - Profile, each 1–5, words only at 1 / 3 / 5 (Low · Medium · High): aroma, acidity, sweetness, body, aftertaste
      - Quality, each 1–5, words only at 1 / 3 / 5, visually separate from Profile: balance (Unbalanced · OK · Harmonious), cleanness (Muddy · OK · Clean)
-     - Compass: Sour↔Balanced↔Bitter, Weak↔Balanced↔Strong (dial-in hints), with helper text that "Sour" is a judgment, not the same as high acidity
      - Flavor tags: roaster's notes first as one-tap confirm chips ("Roaster says: blueberry, cocoa"), then browse by flavor family
      - Other notes (free text)
      - Liking lives in the overall score; only balance and cleanness are judgments by nature
 - **Multiple tastings per brew** — per taster and per temperature, to track how a cup performs as it cools
-  - After a tasting the card stays, muted, as "Rate again when Warm"; when the band changes it returns as "Warm now · 18 min ☆☆☆☆☆"
-  - Edits within 5 min update the same tasting instead of creating a new one
+  - Nothing is gated by time: the temperature thresholds only suggest a band; a cup can be rated again at any moment ("Rate again")
+  - Every rating is its own tasting with its time and minutes after brewing — two at the same temperature stay apart
+  - Changing a rating is an explicit Edit (keeps its time); the rate screen lists every rating of the cup
+  - Pending cards: unrated up to 12 h after brewing, rated ones (latest rating · Edit · Rate again) up to 2 h; any cup can still be rated from its bag or Tastings
   - No push for re-rates
 - "Pending tasting" card for recent unrated brews — a convenience only, nothing enforced; late ratings allowed, `minutes_after_brew` recorded
 - Optional web push "How's the cup?" when a brew reaches the server (iOS: Home Screen app only); offline brews rely on the in-app card
@@ -186,8 +191,8 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
 - Brew stores a **snapshot** of params (+ `recipe_id` / version for provenance, null for freestyle)
 - Brew params: typed core, all optional except method (brewer, dose, water/yield, time, temp, grinder + setting as string) + JSON for method-specific extras
 - `User`: name, avatar/color; no credentials
-- Brew: `brewer_id` (user), `started_from`; `BrewTaster` join (brew × user) for who's drinking → drives pending cards
-- Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` + `temp_band_suggested` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), compass, tags (with source), note
+- Brew: `brewer_id` (user), `started_from`; `BrewTaster` (brew × user) is no longer written — anyone can rate any brew
+- Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` + `temp_band_suggested` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), tags (with source), note (the compass columns stay for old ratings; no longer shown)
 - Storage as events (opened, frozen, thawed, finished, gram adjustments), not booleans or counters
 - `updated_by` on shared entities (who edited a bag)
 - Settings (synced): temperature band thresholds, rest windows per method

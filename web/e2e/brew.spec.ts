@@ -8,7 +8,7 @@ const op = (table: string, id: string, patch: Record<string, unknown>) => ({
   patch,
 })
 
-test('station brew: setup, timer, who is drinking, grams left, save as recipe, brew again; phone sees it', async ({ browser, request }) => {
+test('station brew: setup, timer, save, grams left, save as recipe, brew again; phone sees it', async ({ browser, request }) => {
   await request.post('/api/sync/push', {
     data: {
       ops: [
@@ -30,27 +30,27 @@ test('station brew: setup, timer, who is drinking, grams left, save as recipe, b
   await panel.getByRole('button', { name: 'Brew', exact: true }).click()
   await expect(tablet).toHaveURL(/\/brew\/b-brew$/)
 
-  // Setup: method + brewer chips, params summary, steppers
-  await expect(tablet.getByRole('radio', { name: 'Pour-over' })).toHaveAttribute('aria-checked', 'true')
-  await tablet.getByRole('radio', { name: /Kadou/ }).click()
+  // Setup: only the household's own brewers (no generic method list), params summary, steppers
+  const kit = tablet.getByRole('radiogroup', { name: 'Brewer' })
+  await expect(kit.getByRole('radio', { name: /AeroPress/ })).toBeVisible()
+  await expect(tablet.getByRole('radio', { name: 'Pour-over' })).toHaveCount(0)
+  await kit.getByRole('radio', { name: /Kadou/ }).click()
   await tablet.getByRole('button', { name: /15 g · 250 g · 94°/ }).click()
   await tablet.getByRole('button', { name: 'Dose plus' }).click()
   await expect(tablet.getByRole('button', { name: /15\.5 g · 250 g/ })).toBeVisible()
 
-  // Timer, then who's drinking (prefilled with the brewer), add Dana
+  // Timer, then save — no "who's drinking" step: anyone can rate the cup afterwards
   await tablet.getByRole('button', { name: 'Start' }).click()
   await expect(tablet.getByText(/^0:0\d$/)).toBeVisible()
   await tablet.waitForTimeout(1200)
   await tablet.getByRole('button', { name: 'Done', exact: true }).click()
-  const drinkers = tablet.getByRole('group', { name: "Who's drinking" })
-  await expect(drinkers.getByRole('button', { name: 'Bruno' })).toHaveAttribute('aria-pressed', 'true')
-  await drinkers.getByRole('button', { name: 'Dana' }).click()
-  await tablet.getByRole('button', { name: 'Done · Bruno + Dana' }).click()
+  await expect(tablet.getByRole('group', { name: "Who's drinking" })).toHaveCount(0)
+  await tablet.getByRole('button', { name: 'Save brew' }).click()
 
   // Saved → save as recipe (name prefilled)
   await expect(tablet.getByRole('heading', { name: 'Saved' })).toBeVisible()
   await tablet.getByRole('button', { name: 'Save as recipe' }).click()
-  await expect(tablet.getByPlaceholder('e.g. Daily V60')).toHaveValue('Brew Test Kii · Pour-over')
+  await expect(tablet.getByPlaceholder('e.g. Daily V60')).toHaveValue('Brew Test Kii · Kadou')
   await tablet.getByRole('button', { name: 'Save recipe' }).click()
   await expect(tablet.getByRole('status')).toContainText('Recipe saved')
   await tablet.getByRole('button', { name: 'Back to inventory' }).click()
@@ -58,29 +58,34 @@ test('station brew: setup, timer, who is drinking, grams left, save as recipe, b
   // Inventory: grams left went down by the dose; Brew again shortcut + panel button
   await tablet.getByRole('button', { name: /Test Roasters.*Brew Test Kii/ }).click()
   await expect(panel).toContainText('235 g left')
-  await expect(panel.getByRole('button', { name: /Brew again/ })).toContainText('Pour-over · 15.5 g · 250 g · 94°')
+  await expect(panel.getByRole('button', { name: /Brew again/ })).toContainText('Kadou · 15.5 g · 250 g · 94°')
   await tablet.getByRole('button', { name: 'Brew again: Brew Test Kii' }).click()
   await expect(tablet.getByRole('button', { name: '↻ Brew again' })).toBeVisible()
   await expect(tablet.getByRole('button', { name: /15\.5 g · 250 g · 94°/ })).toBeVisible()
   await expect(tablet.getByRole('radio', { name: /Kadou/ })).toHaveAttribute('aria-checked', 'true')
 
-  // Logging without the timer still asks who's drinking — prefilled from last time
+  // Logging without the timer
   await tablet.getByRole('button', { name: 'Log without timer' }).click()
-  await tablet.getByRole('button', { name: 'Done · Bruno + Dana' }).click()
+  await tablet.getByRole('button', { name: 'Save brew' }).click()
   await expect(tablet.getByRole('heading', { name: 'Saved' })).toBeVisible()
   await expect(tablet.getByRole('button', { name: /Synced/ })).toBeVisible({ timeout: 15_000 })
 
   // The recipe exists in Settings → Equipment with the brew's parameters
   await tablet.goto('/settings/equipment')
-  await expect(tablet.getByRole('button', { name: /Brew Test Kii · Pour-over/ })).toContainText('15.5 g · 250 g · 94°')
+  await expect(tablet.getByRole('button', { name: /Brew Test Kii · Kadou/ })).toContainText('15.5 g · 250 g · 94°')
 
-  // Phone (Dana): both brews in Recent; no Brew again shortcut since Dana brewed nothing
+  // Phone (Dana): both of Bruno's cups are hers to rate too; both brews in Recent; no Brew again
+  // shortcut since Dana brewed nothing; no Brew tab
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await phone.addInitScript(() => localStorage.setItem('coffee.userId', 'u-dana'))
   const page = await phone.newPage()
   await page.goto('/')
+  await expect(page.getByRole('article', { name: 'Cup: Brew Test Kii' })).toHaveCount(2)
   await expect(page.locator('.brew').filter({ hasText: 'Brew Test Kii' })).toHaveCount(2)
   await expect(page.getByRole('heading', { name: 'Brew again' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Brew', exact: true })).toHaveCount(0)
+  await page.goto('/brew')
+  await expect(page).toHaveURL(/\/$/)
 
   await station.close()
   await phone.close()
@@ -103,8 +108,9 @@ test('phone: recipe steps drive the timer cues, and the timer survives a reload'
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await phone.addInitScript(() => localStorage.setItem('coffee.userId', 'u-pia'))
   const page = await phone.newPage()
-  await page.goto('/brew')
-  await page.getByRole('link', { name: /Steps Test/ }).click()
+  await page.goto('/bag/b-steps')
+  await page.getByRole('button', { name: 'Brew', exact: true }).click()
+  await expect(page).toHaveURL(/\/brew\/b-steps$/)
   await page.getByRole('button', { name: 'Recipe…' }).click()
   await page.getByRole('button', { name: 'Quick steps' }).click()
   await expect(page.getByText('Bloom · 0:00 · → 50 g')).toBeVisible()
@@ -115,8 +121,35 @@ test('phone: recipe steps drive the timer cues, and the timer survives a reload'
   await page.reload()
   await expect(page.getByText('Pour → 150 g', { exact: true })).toBeVisible({ timeout: 5000 })
   await expect(page.getByText('Next: Finish → 250 g')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Brew in progress/ })).toHaveCount(0) // not on its own screen
+  await page.getByRole('link', { name: 'Inventory', exact: true }).click()
+  // Away from the brew screen, the running timer is one tap away
+  await page.getByRole('link', { name: /Brew in progress · Steps Test/ }).click()
+  await expect(page).toHaveURL(/\/brew\/b-steps$/)
   await page.getByRole('button', { name: 'Done', exact: true }).click()
-  await page.getByRole('button', { name: 'Done · Pia' }).click()
+  await page.getByRole('button', { name: 'Save brew' }).click()
   await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible()
+  await phone.close()
+})
+
+test('phone: no brewing or rating until the device has a person', async ({ browser, request }) => {
+  await request.post('/api/sync/push', {
+    data: {
+      ops: [
+        op('coffee', 'c-nobody', { name: 'Nobody Test' }),
+        op('bag', 'b-nobody', { coffee_id: 'c-nobody', roast_date: '2026-10-01', weight_g: 250, review_state: 'reviewed' }),
+        op('brew', 'br-nobody', { bag_id: 'b-nobody', brewer_user_id: 'u-bruno', method: 'pour_over', brewed_at: new Date().toISOString() }),
+      ],
+    },
+  })
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await phone.newPage()
+  await page.goto('/brew/b-nobody')
+  await expect(page.getByText(/Add yourself in Settings first/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Log without timer' })).toBeDisabled()
+  await page.goto('/rate/br-nobody/u-bruno')
+  await expect(page.getByText("Who's tasting?")).toBeVisible()
+  await expect(page.getByRole('radiogroup', { name: 'Overall' })).toHaveCount(0)
   await phone.close()
 })

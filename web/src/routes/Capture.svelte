@@ -3,7 +3,7 @@
   import Photo from '../components/Photo.svelte'
   import { MAX_PHOTOS_PER_BAG, addPhoto } from '../lib/actions'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { navigate, route } from '../lib/state/router.svelte'
+  import { replace, route } from '../lib/state/router.svelte'
 
   const bagId = $derived(route.path.split('/')[2] ?? '')
   const view = $derived(inventory.byId.get(bagId))
@@ -43,7 +43,7 @@
       </label>
     </div>
   {/if}
-  <button class="primary done" onclick={() => navigate(`/bag/${bagId}`)}>Done</button>
+  <button class="primary done" onclick={() => replace(`/bag/${bagId}/review`)}>Done</button>
 </div>
 
 <style>

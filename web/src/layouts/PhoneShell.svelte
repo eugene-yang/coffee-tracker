@@ -1,17 +1,19 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
+  import ResumeBrew from '../components/ResumeBrew.svelte'
   import SyncDot from '../components/SyncDot.svelte'
   import { href } from '../lib/state/router.svelte'
 
   let { section, children }: { section: string; children: Snippet } = $props()
 
+  // Brewing isn't a tab: it starts from a bag (Inventory) or Brew again (Home)
   const tabs = [
     { key: 'home', href: '/', label: 'Home' },
     { key: 'inventory', href: '/inventory', label: 'Inventory' },
-    { key: 'brew', href: '/brew', label: 'Brew' },
+    { key: 'tastings', href: '/tastings', label: 'Tastings' },
     { key: 'settings', href: '/settings', label: 'Settings' },
   ]
-  const title = $derived(tabs.find((t) => t.key === section)?.label ?? 'Coffee')
+  const title = $derived(section === 'brew' ? 'Brew' : (tabs.find((t) => t.key === section)?.label ?? 'Coffee'))
 </script>
 
 <div class="phone">
@@ -19,6 +21,7 @@
     <h1>{title}</h1>
     <SyncDot />
   </header>
+  <ResumeBrew />
   <main data-scroll>{@render children()}</main>
   <nav aria-label="Sections">
     {#each tabs as tab (tab.key)}
@@ -31,10 +34,11 @@
 
 <style>
   /* One fixed frame; only <main> scrolls. When the whole page scrolled, iOS dragged the bottom bars
-     along on short pages (rubber-band / collapsing toolbar) */
+     along on short pages (rubber-band / collapsing toolbar). In a Home Screen app the frame reaches
+     past the layout viewport to the real bottom edge (--viewport-gap) */
   .phone {
     position: fixed;
-    inset: 0;
+    inset: 0 0 calc(0px - var(--viewport-gap));
     display: flex;
     flex-direction: column;
     padding-top: env(safe-area-inset-top);

@@ -1,7 +1,7 @@
 """Web Push: VAPID keys, subscriptions and the "How's the cup?" scheduler.
 
-A drinker gets one notification per brew, `push_delay_min` (synced setting) after brewing, if they
-haven't rated it yet. Brews that reach the server late (made offline) are skipped once they are
+Whoever brewed gets one notification per brew, `push_delay_min` (synced setting) after brewing, if
+they haven't rated it yet (anyone can rate any cup; only the brewer is reminded). Brews that reach the server late (made offline) are skipped once they are
 older than MAX_AGE_MIN; the in-app pending card still shows them. Re-rates never notify.
 """
 
@@ -94,21 +94,20 @@ def delay_min(conn: sqlite3.Connection) -> float:
 
 
 def due_notifications(conn: sqlite3.Connection, now: datetime) -> list[Due]:
-    """Drinkers with a subscription whose cup is due for a reminder: not rated, not reminded, not stale."""
+    """Brewers with a subscription whose cup is due for a reminder: not rated by them, not reminded, not stale."""
     due_before = _iso(now - timedelta(minutes=delay_min(conn)))
     stale_before = _iso(now - timedelta(minutes=MAX_AGE_MIN))
     rows = conn.execute(
-        """SELECT bt.brew_id, bt.user_id, c.name AS title
-           FROM brew_taster bt
-           JOIN brew b ON b.id = bt.brew_id AND b.deleted_at IS NULL
+        """SELECT b.id AS brew_id, b.brewer_user_id AS user_id, c.name AS title
+           FROM brew b
            LEFT JOIN bag ON bag.id = b.bag_id
            LEFT JOIN coffee c ON c.id = bag.coffee_id
-           WHERE bt.deleted_at IS NULL
+           WHERE b.deleted_at IS NULL AND b.brewer_user_id IS NOT NULL
              AND b.brewed_at <= ? AND b.brewed_at >= ?
-             AND EXISTS (SELECT 1 FROM push_subscription s WHERE s.user_id = bt.user_id)
-             AND NOT EXISTS (SELECT 1 FROM tasting t WHERE t.brew_id = bt.brew_id AND t.taster_id = bt.user_id
+             AND EXISTS (SELECT 1 FROM push_subscription s WHERE s.user_id = b.brewer_user_id)
+             AND NOT EXISTS (SELECT 1 FROM tasting t WHERE t.brew_id = b.id AND t.taster_id = b.brewer_user_id
                              AND t.deleted_at IS NULL)
-             AND NOT EXISTS (SELECT 1 FROM push_sent p WHERE p.brew_id = bt.brew_id AND p.user_id = bt.user_id)
+             AND NOT EXISTS (SELECT 1 FROM push_sent p WHERE p.brew_id = b.id AND p.user_id = b.brewer_user_id)
            ORDER BY b.brewed_at""",
         (due_before, stale_before),
     ).fetchall()

@@ -51,7 +51,7 @@
 <style>
   .backdrop {
     position: fixed;
-    inset: 0;
+    inset: 0 0 calc(0px - var(--viewport-gap));
     background: rgb(0 0 0 / 0.5);
     z-index: 30;
   }
@@ -59,7 +59,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: calc(0px - var(--viewport-gap));
     z-index: 31;
     max-height: 80dvh;
     overflow-y: auto;

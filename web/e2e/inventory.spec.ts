@@ -11,12 +11,17 @@ test('capture a bag, review the label, browse and search on phone and station', 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
   const page = await phone.newPage()
   await page.goto('/settings')
-  await page.getByLabel("New person's name").fill('Ana')
+  await page.getByLabel("New person's name").fill('Ines')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
+  // An emoji avatar instead of the initial
+  await page.locator('button.person', { hasText: 'Ines' }).click()
+  await page.getByRole('radiogroup', { name: 'Avatar emoji' }).getByRole('radio', { name: '🦊' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('button.person', { hasText: 'Ines' }).locator('.avatar')).toHaveText('🦊')
 
-  // Snap: one tap opens the camera; the bag exists immediately
+  // One photo: the bag exists immediately, then its back / sticker can be added
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()
-  await page.getByLabel('Photograph a new bag').setInputFiles(BAG_PHOTO)
+  await page.getByLabel('Add bags from photos').setInputFiles(BAG_PHOTO)
   await expect(page).toHaveURL(/\/capture\//)
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page).toHaveURL(/\/bag\//)
@@ -63,7 +68,7 @@ test('capture a bag, review the label, browse and search on phone and station', 
     })
     .toEqual(['name'])
 
-  // Station: tile with freshness and amount; tap → side panel; freeze collapses into Frozen
+  // Station: tile with freshness and amount; tap → side panel; freeze moves it to Frozen (shown, not collapsed)
   const station = await browser.newContext({ viewport: { width: 1024, height: 600 } })
   const tablet = await station.newPage()
   await tablet.goto('/')
@@ -74,12 +79,13 @@ test('capture a bag, review the label, browse and search on phone and station', 
   await tile.click()
   const panel = tablet.getByRole('complementary', { name: 'Bag details' })
   await panel.getByRole('button', { name: 'Freeze' }).click()
-  await expect(tablet.getByRole('button', { name: /Frozen · 1/ })).toBeVisible()
+  await expect(tablet.getByRole('heading', { name: 'Frozen (1)' })).toBeVisible()
+  await expect(tile).toBeVisible()
   await expect(tablet.getByRole('status')).toContainText('Moved to freezer')
 
   // Offline capture on the phone: saved locally, uploaded when back online
   await phone.setOffline(true)
-  await page.getByLabel('Photograph a new bag').setInputFiles(BAG_PHOTO)
+  await page.getByLabel('Add bags from photos').setInputFiles(BAG_PHOTO)
   await page.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Needs review (1)' })).toBeVisible()
@@ -94,7 +100,7 @@ test('capture a bag, review the label, browse and search on phone and station', 
   await station.close()
 })
 
-test('phone: add a bag from the photo library onto the shelf; the page frame never scrolls', async ({ browser }) => {
+test('phone: add several bags in one pick onto the shelf; the page frame never scrolls', async ({ browser }) => {
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
   const page = await phone.newPage()
   await page.goto('/settings')
@@ -102,30 +108,45 @@ test('phone: add a bag from the photo library onto the shelf; the page frame nev
   await expect(page.getByRole('radio', { name: 'Shelf' })).toHaveAttribute('aria-checked', 'true')
 
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()
-  await page.getByLabel('Choose photos of a new bag').setInputFiles([BAG_PHOTO, BAG_PHOTO])
+  // Several photos in one pick: one bag each, waiting under Needs review (the first test left one there)
+  await expect(page.getByRole('button', { name: 'Synced', exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: 'Needs review (1)' })).toBeVisible()
+  const since = new Date().toISOString()
+  await page.getByLabel('Add bags from photos').setInputFiles([BAG_PHOTO, BAG_PHOTO])
+  await expect(page.getByRole('status')).toContainText('Added 2 bags')
+  await expect(page).toHaveURL(/\/inventory$/)
+  await expect(page.getByRole('heading', { name: 'Needs review (3)' })).toBeVisible()
+
+  // One photo: more of the same bag can follow, up to three
+  await page.getByLabel('Add bags from photos').setInputFiles(BAG_PHOTO)
   await expect(page).toHaveURL(/\/capture\//)
-  await expect(page.locator('.shot')).toHaveCount(2)
-  await page.getByLabel('Add from photos').setInputFiles([BAG_PHOTO, BAG_PHOTO]) // only one more fits
+  await page.getByLabel('Add from photos').setInputFiles([BAG_PHOTO, BAG_PHOTO, BAG_PHOTO]) // only two more fit
   await expect(page.locator('.shot')).toHaveCount(3)
   await expect(page.getByLabel('Add from photos')).toHaveCount(0)
-  const bagId = page.url().split('/').pop()
   await page.getByRole('button', { name: 'Done' }).click()
-  // On the shelf: no "frozen" event was recorded for it
-  const events = await page.evaluate(
-    (id) =>
-      new Promise<string[]>((resolve) => {
+
+  // On the shelf: no "frozen" event was recorded for any of the three
+  const [added, events] = await page.evaluate(
+    (since) =>
+      new Promise<[number, string[]]>((resolve) => {
         const open = indexedDB.open('coffee')
         open.onsuccess = () => {
-          const all = open.result.transaction('bag_event').objectStore('bag_event').getAll()
-          all.onsuccess = () => resolve(all.result.filter((e) => e.bag_id === id).map((e) => e.kind))
+          const tx = open.result.transaction(['bag', 'bag_event'])
+          const bags = tx.objectStore('bag').getAll()
+          const all = tx.objectStore('bag_event').getAll()
+          tx.oncomplete = () => {
+            const ids = new Set(bags.result.filter((b) => b.created_at >= since).map((b) => b.id))
+            resolve([ids.size, all.result.filter((e) => ids.has(e.bag_id)).map((e) => e.kind)])
+          }
         }
       }),
-    bagId,
+    since,
   )
+  expect(added).toBe(3)
   expect(events).toEqual([])
 
   // Only the content area scrolls, so iOS can't drag the bottom bars around on short pages
-  for (const path of ['/', '/inventory', '/brew', '/settings']) { // settings is taller than the screen
+  for (const path of ['/', '/inventory', '/tastings', '/settings']) { // settings is taller than the screen
     await page.goto(path)
     await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)

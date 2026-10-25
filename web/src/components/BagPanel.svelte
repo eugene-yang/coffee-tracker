@@ -1,14 +1,15 @@
 <script lang="ts">
-  // Station: bag details beside the grid (tap a tile), big Brew again on top
+  // Station: bag details beside the grid (tap a tile), big Brew again on top, the last few brews below
   import BagActions from './BagActions.svelte'
+  import BagHistory from './BagHistory.svelte'
   import FreshnessBar from './FreshnessBar.svelte'
   import Photo from './Photo.svelte'
   import type { BagView } from '../lib/domain/inventory'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { brewAgainSource, methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { brewAgainSource, brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import { brewState } from '../lib/state/brew.svelte'
   import { device } from '../lib/state/device.svelte'
-  import { brews } from '../lib/state/live.svelte'
+  import { brewers, brews } from '../lib/state/live.svelte'
   import { navigate } from '../lib/state/router.svelte'
 
   let { view, onclose }: { view: BagView; onclose: () => void } = $props()
@@ -16,7 +17,7 @@
   const again = $derived(brewAgainSource(brews.rows, view.id, device.userId))
 
   function brew() {
-    brewState.prepare(view.id, device.userId, again ? { method: again.method } : {})
+    brewState.prepare(view.id, device.userId, again ? { brewerId: again.brewer_id, method: again.method } : {})
     navigate(`/brew/${view.id}`)
   }
 </script>
@@ -36,7 +37,7 @@
 
   <button class="primary brew" onclick={brew}>
     {again ? 'Brew again' : 'Brew'}
-    {#if again}<small>{methodLabel(again.method)} · {paramSummary(paramsOf(again))}</small>{/if}
+    {#if again}<small>{brewerLabel(again, brewers.rows)} · {paramSummary(paramsOf(again))}</small>{/if}
   </button>
 
   {#if view.gramsLeft != null}
@@ -47,6 +48,7 @@
   {#if view.needsReview}
     <p class="muted">Label details still need a review on the phone.</p>
   {/if}
+  <BagHistory bagId={view.id} limit={3} filter={false} />
 </aside>
 
 <style>

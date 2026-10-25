@@ -25,3 +25,10 @@ export function timeAgo(iso: string, now = Date.now()): string {
   const d = Math.round(h / 24)
   return d === 1 ? 'yesterday' : `${d} days ago`
 }
+
+/** "9:12 AM" today, "Oct 21, 9:12 AM" otherwise. */
+export function dateTime(iso: string, now = Date.now()): string {
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return d.toDateString() === new Date(now).toDateString() ? time : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`
+}

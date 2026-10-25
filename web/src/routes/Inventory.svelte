@@ -35,7 +35,6 @@
   let sheetOpen = $state(false)
   let sortOpen = $state(false)
   let selectedId = $state<string | null>(null)
-  let frozenOpen = $state(false)
 
   const live = $derived(inventory.views.filter((v) => !inventory.hidden.has(v.id)))
   const searching = $derived(inventory.hits !== null)
@@ -160,7 +159,7 @@
       {@render controls()}
       {#if shortcuts.length}
         <div class="shortcuts" aria-label="Brew again">
-          {#each shortcuts as s (s.bagId + s.brew.method)}<BrewShortcut shortcut={s} compact />{/each}
+          {#each shortcuts as s (s.brew.id)}<BrewShortcut shortcut={s} compact />{/each}
         </div>
       {/if}
     {/if}
@@ -168,7 +167,7 @@
     {#if bags.loaded && inventory.views.length === 0}
       <div class="empty card">
         <strong>No beans yet</strong>
-        <p class="muted">{layout === 'station' ? 'Add bags from your phone.' : 'Snap the front of a bag to add it.'}</p>
+        <p class="muted">{layout === 'station' ? 'Add bags from your phone.' : 'Photograph the front of each bag to add it.'}</p>
       </div>
     {:else if searching}
       <section>
@@ -179,16 +178,9 @@
       {#each sections as s (s.id)}
         {@const shown = s.views.filter((v) => visible.has(v.id)).length}
         <section hidden={shown === 0}>
-          {#if s.id === 'frozen'}
-            <button class="section-toggle" aria-expanded={frozenOpen} onclick={() => (frozenOpen = !frozenOpen)}>
-              <h2>Frozen · {shown}</h2>
-              <span class="muted">{frozenOpen ? 'Hide' : 'Show'}</span>
-            </button>
-            {#if frozenOpen || filtering}{@render list(s.views)}{/if}
-          {:else}
-            <h2>{s.label}{s.id === 'needs_review' ? ` (${shown})` : ''}</h2>
-            {@render list(s.views)}
-          {/if}
+          <!-- Frozen is regular stock (bags are brewed straight from the freezer), so it's never collapsed -->
+          <h2>{s.label}{s.id === 'needs_review' || s.id === 'frozen' ? ` (${shown})` : ''}</h2>
+          {@render list(s.views)}
         </section>
       {/each}
       {#if filtering && visible.size === 0}
@@ -289,15 +281,6 @@
     border-color: var(--accent);
     color: var(--accent);
   }
-  .section-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: none;
-    background: transparent;
-    padding: 0;
-    min-height: 40px;
-  }
   .empty {
     text-align: center;
     padding: 32px 16px;
@@ -309,7 +292,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(57px + env(safe-area-inset-bottom));
+    bottom: calc(57px + env(safe-area-inset-bottom) - var(--viewport-gap));
     display: flex;
     flex-direction: column;
     gap: 8px;

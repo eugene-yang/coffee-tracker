@@ -52,12 +52,12 @@ def subscribe(client, user, endpoint=None):
     return endpoint
 
 
-def brew(client, brew_id, minutes_ago, drinkers, coffee="Kii AA"):
+def brew(client, brew_id, minutes_ago, brewer, coffee="Kii AA"):
     sync_push(client,
               op(table="coffee", id=f"c-{brew_id}", name=coffee),
               op(table="bag", id=f"b-{brew_id}", coffee_id=f"c-{brew_id}"),
-              op(table="brew", id=brew_id, bag_id=f"b-{brew_id}", method="pour_over", brewed_at=ago(minutes_ago)),
-              *[op(table="brew_taster", id=f"{brew_id}:{u}", brew_id=brew_id, user_id=u) for u in drinkers])
+              op(table="brew", id=brew_id, bag_id=f"b-{brew_id}", method="pour_over", brewed_at=ago(minutes_ago),
+                 brewer_user_id=brewer))
 
 
 def test_vapid_key_is_created_once_and_served(app_client, tmp_path):
@@ -69,11 +69,13 @@ def test_vapid_key_is_created_once_and_served(app_client, tmp_path):
     assert push.application_server_key(push.load_or_create_vapid(path)) == key
 
 
-def test_reminds_each_drinker_once_after_the_delay(app_client):
+def test_reminds_the_brewer_once_after_the_delay(app_client):
     ana, bo = subscribe(app_client, "ana"), subscribe(app_client, "bo")
-    brew(app_client, "br1", 3, ["ana", "bo"])
+    brew(app_client, "br1", 3, "ana")
     assert push.send_due(app_client.conn, app_client.sender, NOW) == 0  # not due yet (5 min default)
-    brew(app_client, "br2", 6, ["ana", "bo"])
+    brew(app_client, "br2", 6, "ana")
+    brew(app_client, "br3", 7, "bo")
+    brew(app_client, "nobody", 8, None)  # saved before the device had a person
     assert push.send_due(app_client.conn, app_client.sender, NOW) == 2
     assert sorted(e for e, _ in app_client.sender.sent) == sorted([ana, bo])
     msg = app_client.sender.sent[0][1]
@@ -83,19 +85,19 @@ def test_reminds_each_drinker_once_after_the_delay(app_client):
 
 def test_skips_rated_undone_stale_and_unsubscribed(app_client):
     subscribe(app_client, "ana")
-    brew(app_client, "rated", 10, ["ana"])
+    brew(app_client, "rated", 10, "ana")
     sync_push(app_client, op(table="tasting", brew_id="rated", taster_id="ana", rated_at=ago(2), overall=4))
-    brew(app_client, "undone", 10, ["ana"])
+    brew(app_client, "undone", 10, "ana")
     sync_push(app_client, op(table="brew", id="undone", kind="delete"))
-    brew(app_client, "stale", push.MAX_AGE_MIN + 5, ["ana"])  # arrived late from an offline device
-    brew(app_client, "nobody", 10, ["cy"])  # cy has no subscription
+    brew(app_client, "stale", push.MAX_AGE_MIN + 5, "ana")  # arrived late from an offline device
+    brew(app_client, "nobody", 10, "cy")  # cy has no subscription
     assert push.send_due(app_client.conn, app_client.sender, NOW) == 0
 
 
 def test_delay_is_a_synced_setting(app_client):
     subscribe(app_client, "ana")
     sync_push(app_client, op(table="setting", id=push.DELAY_SETTING, value=15))
-    brew(app_client, "br", 10, ["ana"])
+    brew(app_client, "br", 10, "ana")
     assert push.send_due(app_client.conn, app_client.sender, NOW) == 0
     assert push.send_due(app_client.conn, app_client.sender, NOW + timedelta(minutes=6)) == 1
 
@@ -105,7 +107,8 @@ def test_dead_subscriptions_are_removed_and_failures_not_retried(app_client):
     broken = subscribe(app_client, "bo")
     app_client.sender.gone.add(gone)
     app_client.sender.broken.add(broken)
-    brew(app_client, "br", 10, ["ana", "bo"])
+    brew(app_client, "br", 10, "ana")
+    brew(app_client, "br-bo", 10, "bo")
     assert push.send_due(app_client.conn, app_client.sender, NOW) == 0
     assert app_client.conn.execute("SELECT endpoint FROM push_subscription").fetchall()[0][0] == broken
     statuses = dict(app_client.conn.execute("SELECT user_id, status FROM push_sent").fetchall())

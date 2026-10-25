@@ -2,9 +2,10 @@
 // elapsed time is always computed from the start timestamp, never counted.
 import { mutate, nowIso, remove } from '../db/local'
 import { uuidv7 } from '../db/uuid'
-import { brewAgainSource, defaultParams, paramsOf, suggestDrinkers } from '../domain/brew'
+import { brewAgainSource, defaultParams, paramsOf, pickBrewer, pickGrinder } from '../domain/brew'
 import type { BrewParams, Recipe, StartedFrom } from '../domain/types'
-import { brews, brewTasters } from './live.svelte'
+import { device } from './device.svelte'
+import { brewers, brews, grinders } from './live.svelte'
 
 export interface BrewDraft {
   id: string
@@ -18,7 +19,6 @@ export interface BrewDraft {
   startedAt: number | null
   stoppedAt: number | null
   laps: number[]
-  drinkers: string[]
 }
 
 const KEY = 'coffee.brewDraft'
@@ -44,9 +44,26 @@ class BrewState {
     }
   }
 
-  /** Set up a brew of this bag: copy the last brew (Brew again) when there is one, else method defaults. */
-  prepare(bagId: string, userId: string | null, opts: { method?: string; recipe?: Recipe; freestyle?: boolean } = {}): BrewDraft {
-    const source = opts.recipe || opts.freestyle ? undefined : brewAgainSource(brews.rows, bagId, userId, opts.method)
+  /**
+   * Set up a brew of this bag with the household's own equipment: the brewer asked for, else the one
+   * this bag was last brewed with, else this person's usual one. Copies the last brew with that brewer
+   * (Brew again) when there is one, else method defaults.
+   */
+  prepare(
+    bagId: string,
+    userId: string | null,
+    opts: { brewerId?: string | null; method?: string; recipe?: Recipe; freestyle?: boolean } = {},
+  ): BrewDraft {
+    const last = opts.brewerId || opts.recipe ? undefined : brewAgainSource(brews.rows, bagId, userId, opts.method)
+    const want = opts.brewerId
+      ? { brewerId: opts.brewerId }
+      : opts.recipe
+        ? { brewerId: opts.recipe.brewer_id, method: opts.recipe.method }
+        : { brewerId: last?.brewer_id, method: last?.method ?? opts.method }
+    const brewer = pickBrewer(brewers.rows, brews.rows, userId, want) ?? pickBrewer(brewers.rows, brews.rows, userId, {})
+    const method = brewer?.method ?? want.method ?? 'pour_over'
+
+    const source = opts.recipe || opts.freestyle ? undefined : brewAgainSource(brews.rows, bagId, userId, method, brewer?.id)
     let params: BrewParams
     let startedFrom: StartedFrom
     if (opts.recipe) {
@@ -56,9 +73,11 @@ class BrewState {
       params = paramsOf(source)
       startedFrom = 'brew_again'
     } else {
-      params = defaultParams(opts.method ?? 'pour_over')
+      params = defaultParams(method)
       startedFrom = 'freestyle'
     }
+    const grinder = pickGrinder(grinders.rows, brews.rows, userId, params.grinder_id)
+    params = { ...params, method, brewer_id: brewer?.id ?? null, grinder_id: grinder?.id ?? null }
     this.draft = {
       id: uuidv7(),
       bagId,
@@ -71,7 +90,6 @@ class BrewState {
       startedAt: null,
       stoppedAt: null,
       laps: [],
-      drinkers: [],
     }
     this.save()
     return this.draft
@@ -109,33 +127,27 @@ class BrewState {
     this.save()
   }
 
-  /** Stop the timer and suggest who's drinking: whoever drank this person's last brew, else just them. */
+  /** Stop the timer (or skip it: log without timer); time and yield can still be adjusted before saving. */
   stop() {
     const d = this.draft
     if (!d) return
+    // A brew set up before this device had a person (e.g. right after install) belongs to whoever finishes it
+    d.brewerUserId ??= device.userId
     d.stoppedAt = d.startedAt ? Date.now() : null
     d.phase = 'stopped'
     const time = Math.round(this.elapsedS())
     if (d.startedAt) d.params = { ...d.params, time_s: time }
-    d.drinkers = suggestDrinkers(brews.rows, brewTasters.rows, d.brewerUserId)
     this.save()
   }
 
-  toggleDrinker(userId: string) {
-    const d = this.draft
-    if (!d) return
-    d.drinkers = d.drinkers.includes(userId) ? d.drinkers.filter((u) => u !== userId) : [...d.drinkers, userId]
-    this.save()
-  }
-
-  /** Save the brew and who's drinking. Returns the saved brew's id. */
+  /** Save the brew; anyone can rate it afterwards. Returns the saved brew's id. */
   async finish(): Promise<string> {
     const d = $state.snapshot(this.draft)
     if (!d) throw new Error('no brew in progress')
     const p = d.params
     await mutate('brew', d.id, {
       bag_id: d.bagId,
-      brewer_user_id: d.brewerUserId,
+      brewer_user_id: d.brewerUserId ?? device.userId,
       method: p.method,
       brewer_id: p.brewer_id,
       grinder_id: p.grinder_id,
@@ -154,7 +166,6 @@ class BrewState {
       brewed_at: nowIso(),
       note: null,
     })
-    for (const u of d.drinkers) await mutate('brew_taster', `${d.id}:${u}`, { brew_id: d.id, user_id: u })
     this.draft = null
     this.save()
     return d.id
@@ -171,10 +182,9 @@ class BrewState {
   }
 }
 
-/** Undo a just-saved brew (and its drinkers). */
-export async function undoBrew(brewId: string, drinkers: string[]): Promise<void> {
-  for (const u of drinkers) await remove('brew_taster', `${brewId}:${u}`)
-  await remove('brew', brewId)
+/** Undo a just-saved brew. */
+export function undoBrew(brewId: string): Promise<unknown> {
+  return remove('brew', brewId)
 }
 
 export const brewState = new BrewState()
