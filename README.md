@@ -69,7 +69,7 @@ challenge, so nothing has to be exposed to the internet and no device needs a cu
    - Android tablet: open it in Chrome (or another Chromium browser) → menu → Install app. For a
      kiosk, use screen pinning or Fully Kiosk Browser.
    - Open Settings in the app, add the people in the household, and pick who uses each device.
-   - Notifications ("How's the cup?" a few minutes after a brew you're drinking): Settings →
+   - Notifications ("How's the cup?" a few minutes after a brew you made): Settings →
      Notifications → Turn on, on each phone. On iPhone this only works in the Home Screen app.
      Use "Send a test" to check a device. The server makes its push key on first start
      (`data/vapid_private.pem`); keep it, or every device has to turn notifications on again.

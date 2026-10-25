@@ -1,6 +1,7 @@
 <script lang="ts">
-  // Station: bag details beside the grid (tap a tile), big Brew again on top
+  // Station: bag details beside the grid (tap a tile), big Brew again on top, the last few brews below
   import BagActions from './BagActions.svelte'
+  import BagHistory from './BagHistory.svelte'
   import FreshnessBar from './FreshnessBar.svelte'
   import Photo from './Photo.svelte'
   import type { BagView } from '../lib/domain/inventory'
@@ -47,6 +48,7 @@
   {#if view.needsReview}
     <p class="muted">Label details still need a review on the phone.</p>
   {/if}
+  <BagHistory bagId={view.id} limit={3} filter={false} />
 </aside>
 
 <style>

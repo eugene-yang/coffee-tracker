@@ -1,60 +1,45 @@
 <script lang="ts">
-  // Station: everyone's cups waiting for a rating, below the grid. A star next to your avatar rates in one tap;
-  // tapping the avatar opens a bigger sheet with your name on it.
+  // Station: recent cups below the grid, one each. Anyone can rate any cup: tap your avatar for a big
+  // sheet with your name on it. Each avatar shows that person's latest stars.
   import Avatar from './Avatar.svelte'
-  import Stars from './Stars.svelte'
   import StarsSheet from './StarsSheet.svelte'
-  import TempChip from './TempChip.svelte'
-  import { TEMP_BAND_LABELS, type PendingTasting } from '../lib/domain/tasting'
+  import type { Brew } from '../lib/domain/types'
+  import { brewerLabel } from '../lib/domain/brew'
+  import { TEMP_BAND_LABELS } from '../lib/domain/tasting'
+  import { suggestTempBand } from '../lib/domain/tempBand'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { users } from '../lib/state/live.svelte'
-  import { ratedToast, tastingState } from '../lib/state/tastings.svelte'
+  import { brewers, users } from '../lib/state/live.svelte'
+  import { tastingState } from '../lib/state/tastings.svelte'
 
-  let sheetKey = $state<string | null>(null)
-  const sheet = $derived(tastingState.all.find((p) => p.key === sheetKey))
+  let sheet = $state<{ brew: Brew; userId: string } | null>(null)
 
-  const titleOf = (p: PendingTasting) => inventory.byId.get(p.brew.bag_id)?.title ?? 'Bag'
-
-  async function rate(p: PendingTasting, n: number) {
-    const { undo } = await tastingState.rate(p, n)
-    ratedToast(users.get(p.userId)?.name ?? '', n, undo)
-  }
+  const titleOf = (b: Brew) => inventory.byId.get(b.bag_id)?.title ?? 'Bag'
 </script>
 
-{#if tastingState.all.length}
+{#if tastingState.cups.length && users.rows.length}
   <section class="strip" aria-label="Pending tastings">
-    {#each tastingState.all as p (p.key)}
-      {@const user = users.get(p.userId)}
-      {#if p.state === 'waiting'}
-        <div class="item muted">
-          <Avatar {user} size={40} />
-          <span class="text">
-            <span class="title">{user?.name} · {titleOf(p)}</span>
-            <span>{'★'.repeat(p.last?.overall ?? 0)} · again when {TEMP_BAND_LABELS[p.nextBand ?? 'warm']}</span>
-          </span>
-        </div>
-      {:else}
-        <div class="item">
-          <button class="who" aria-label="Rate as {user?.name}" onclick={() => (sheetKey = p.key)}><Avatar {user} size={48} /></button>
-          <span class="text">
-            <span class="title">{user?.name} · {titleOf(p)}</span>
-            <Stars
-              value={p.state === 'editing' ? p.last?.overall : null}
-              size={56}
-              showLabel={false}
-              label="{user?.name}: {titleOf(p)}"
-              onrate={(n) => rate(p, n)}
-            />
-          </span>
-          <TempChip band={tastingState.bandOf(p)} minutes={p.minutes} now={p.state === 'again'} compact oncycle={() => tastingState.cycleBand(p)} />
-        </div>
-      {/if}
+    {#each tastingState.cups as c (c.brew.id)}
+      <div class="item" role="group" aria-label="Cup: {titleOf(c.brew)}">
+        <span class="text">
+          <span class="title">{titleOf(c.brew)}</span>
+          <span class="muted">{brewerLabel(c.brew, brewers.rows)} · {TEMP_BAND_LABELS[suggestTempBand(c.minutes, tastingState.thresholds)]} · {Math.round(c.minutes)}m</span>
+        </span>
+        <span class="who">
+          {#each users.rows as u (u.id)}
+            {@const t = c.latest.get(u.id)}
+            <button class="person" class:rated={!!t} aria-label="Rate {titleOf(c.brew)} as {u.name}" onclick={() => (sheet = { brew: c.brew, userId: u.id })}>
+              <Avatar user={u} size={40} />
+              <span class="stars">{t?.overall ? `★${t.overall}` : 'Rate'}</span>
+            </button>
+          {/each}
+        </span>
+      </div>
     {/each}
   </section>
 {/if}
 
 {#if sheet}
-  <StarsSheet p={sheet} onclose={() => (sheetKey = null)} />
+  <StarsSheet brew={sheet.brew} userId={sheet.userId} onclose={() => (sheet = null)} />
 {/if}
 
 <style>
@@ -74,22 +59,11 @@
     flex: none;
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 6px 4px 2px;
+    gap: 12px;
+    padding: 4px 6px 4px 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface);
-  }
-  .item.muted {
-    background: transparent;
-    padding: 8px 16px 8px 8px;
-  }
-  .who {
-    width: 52px;
-    min-height: 56px;
-    padding: 0;
-    border: none;
-    background: transparent;
   }
   .text {
     display: flex;
@@ -99,16 +73,36 @@
   }
   .title {
     font-size: 15px;
-    max-width: 280px;
+    font-weight: 600;
+    max-width: 220px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .item :global(.temp) {
-    min-height: 56px;
-    padding: 0 10px;
+  .text .muted {
+    font-size: 13px;
   }
-  .item :global(.stars) {
-    gap: 0;
+  .who {
+    display: flex;
+    gap: 4px;
+  }
+  .person {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 72px;
+    min-width: 64px;
+    padding: 4px;
+    border: none;
+    background: transparent;
+  }
+  .stars {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .person.rated .stars {
+    color: var(--accent);
   }
 </style>

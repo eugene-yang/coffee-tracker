@@ -1,4 +1,4 @@
-// Rating logic: pending-tasting cards, the 5-minute edit window, re-rating as the cup cools, scales and tags.
+// Rating logic: pending-tasting cards (anyone rates any cup, as often as they like), scales and tags.
 import { suggestTempBand, type TempBand, type TempBandThresholds } from './tempBand'
 import type { Brew, Tasting, TastingTag } from './types'
 
@@ -16,32 +16,20 @@ export function cycleBand(b: TempBand): TempBand {
   return TEMP_BANDS[(TEMP_BANDS.indexOf(b) + 1) % TEMP_BANDS.length]
 }
 
-const rank = (b: TempBand) => TEMP_BANDS.indexOf(b)
-
-/** Taps within this many minutes of a tasting update it instead of starting a new one. */
-export const EDIT_WINDOW_MIN = 5
 /** Unrated cups stay on the pending list this long. */
 export const PENDING_MAX_MIN = 12 * 60
-/** Rated cups come back for a re-rate as they cool, until this long after brewing. */
-export const RERATE_MAX_MIN = 120
+/**
+ * A rated cup stays on the list, to rate again as it cools, until this long after brewing. Only the
+ * list is limited: any cup can be rated or re-rated at any time from its bag or Tastings.
+ */
+export const RATED_SHOWN_MAX_MIN = 120
 
 export function minutesSince(iso: string, now: number): number {
   return Math.max(0, (now - Date.parse(iso)) / 60_000)
 }
 
-export function inEditWindow(t: Tasting, now: number): boolean {
-  return now - Date.parse(t.rated_at) < EDIT_WINDOW_MIN * 60_000
-}
-
-const bandOf = (t: Tasting): TempBand => t.temp_band ?? t.temp_band_suggested ?? 'hot'
-
-/**
- * - new: not rated yet
- * - editing: rated less than 5 min ago; taps change that tasting
- * - waiting: rated, muted until the cup reaches the next band ("Rate again when Warm")
- * - again: the cup moved to a cooler band since the last tasting ("Warm now · 18 min")
- */
-export type CardState = 'new' | 'editing' | 'waiting' | 'again'
+/** new: this person hasn't rated the cup yet · rated: they have (shows the latest, Edit · Rate again) */
+export type CardState = 'new' | 'rated'
 
 export interface PendingTasting {
   key: string // brew_id:user_id
@@ -51,71 +39,74 @@ export interface PendingTasting {
   suggested: TempBand
   state: CardState
   last: Tasting | undefined // this person's latest tasting of this brew
-  nextBand: TempBand | null // waiting: the band that brings the card back
+  count: number // how many times this person rated it
 }
 
-/** Each drinker's latest tasting per brew, keyed brew_id:user_id. */
-export function latestTastings(tastings: Tasting[]): Map<string, Tasting> {
-  const latest = new Map<string, Tasting>()
-  for (const t of tastings) {
+/** Each person's tastings per brew, keyed brew_id:user_id, oldest first. */
+export function tastingsByCup(tastings: Tasting[]): Map<string, Tasting[]> {
+  const out = new Map<string, Tasting[]>()
+  for (const t of [...tastings].sort((a, b) => a.rated_at.localeCompare(b.rated_at))) {
     const key = `${t.brew_id}:${t.taster_id}`
-    const cur = latest.get(key)
-    if (!cur || t.rated_at > cur.rated_at) latest.set(key, t)
+    out.set(key, [...(out.get(key) ?? []), t])
   }
-  return latest
+  return out
+}
+
+/** Each person's latest tasting per brew, keyed brew_id:user_id. */
+export function latestTastings(tastings: Tasting[]): Map<string, Tasting> {
+  return new Map([...tastingsByCup(tastings)].map(([k, list]) => [k, list[list.length - 1]]))
 }
 
 /**
- * Pending-tasting cards for everyone drinking a recent brew (or one person): ones to rate now first, newest brew first.
- * A brew saved with nobody marked as drinking is the brewer's cup; one saved before the device had a
- * person at all is offered to `userId` (the person looking), so it can still be rated.
+ * Pending cards for one person: every recent cup, whoever brewed it (anyone can rate any cup).
+ * Cups they haven't rated come first, then newest brew first.
  */
-export function pendingTastings(
-  brews: Brew[],
-  tasters: { brew_id: string; user_id: string }[],
-  tastings: Tasting[],
-  now: number,
-  thresholds: TempBandThresholds,
-  userId?: string | null,
-): PendingTasting[] {
-  const byId = new Map(brews.map((b) => [b.id, b]))
-  const latest = latestTastings(tastings)
+export function pendingTastings(brews: Brew[], tastings: Tasting[], now: number, thresholds: TempBandThresholds, userId: string): PendingTasting[] {
+  const mine = tastingsByCup(tastings.filter((t) => t.taster_id === userId))
   const out: PendingTasting[] = []
-  const drunk = new Set(tasters.map((t) => t.brew_id))
-  const implied = brews.flatMap((b) => {
-    const user = b.brewer_user_id ?? userId
-    return drunk.has(b.id) || !user ? [] : [{ brew_id: b.id, user_id: user }]
-  })
-  for (const bt of [...tasters, ...implied]) {
-    if (userId !== undefined && bt.user_id !== userId) continue
-    const brew = byId.get(bt.brew_id)
-    if (!brew) continue
+  for (const brew of brews) {
     const minutes = minutesSince(brew.brewed_at, now)
-    const suggested = suggestTempBand(minutes, thresholds)
-    const key = `${brew.id}:${bt.user_id}`
-    const last = latest.get(key)
-    const card = { key, brew, userId: bt.user_id, minutes, suggested, last, nextBand: null }
-    if (!last) {
-      if (minutes <= PENDING_MAX_MIN) out.push({ ...card, state: 'new' })
-    } else if (inEditWindow(last, now)) {
-      out.push({ ...card, state: 'editing' })
-    } else if (minutes <= RERATE_MAX_MIN) {
-      if (rank(suggested) > rank(bandOf(last))) out.push({ ...card, state: 'again' })
-      else if (bandOf(last) !== 'cool') out.push({ ...card, state: 'waiting', nextBand: TEMP_BANDS[rank(bandOf(last)) + 1] })
-    }
+    const key = `${brew.id}:${userId}`
+    const list = mine.get(key) ?? []
+    if (minutes > (list.length ? RATED_SHOWN_MAX_MIN : PENDING_MAX_MIN)) continue
+    out.push({
+      key,
+      brew,
+      userId,
+      minutes,
+      suggested: suggestTempBand(minutes, thresholds),
+      state: list.length ? 'rated' : 'new',
+      last: list[list.length - 1],
+      count: list.length,
+    })
   }
-  const muted = (p: PendingTasting) => (p.state === 'waiting' ? 1 : 0)
-  return out.sort((a, b) => muted(a) - muted(b) || b.brew.brewed_at.localeCompare(a.brew.brewed_at))
+  const rated = (p: PendingTasting) => (p.state === 'rated' ? 1 : 0)
+  return out.sort((a, b) => rated(a) - rated(b) || b.brew.brewed_at.localeCompare(a.brew.brewed_at))
 }
 
-/** Cards that want a tap now (not the muted "rate again later" ones). */
-export const isActionable = (p: PendingTasting) => p.state !== 'waiting'
+export interface PendingCup {
+  brew: Brew
+  minutes: number
+  suggested: TempBand
+  latest: Map<string, Tasting> // each person's latest tasting, by user id
+}
+
+/** Station strip: recent cups, one each, with everyone's latest rating; shown as long as on a phone. */
+export function pendingCups(brews: Brew[], tastings: Tasting[], now: number, thresholds: TempBandThresholds): PendingCup[] {
+  const latest = latestTastings(tastings)
+  const out: PendingCup[] = []
+  for (const brew of brews) {
+    const minutes = minutesSince(brew.brewed_at, now)
+    const mine = new Map([...latest].filter(([k]) => k.startsWith(`${brew.id}:`)).map(([, t]) => [t.taster_id, t]))
+    if (minutes > (mine.size ? RATED_SHOWN_MAX_MIN : PENDING_MAX_MIN)) continue
+    out.push({ brew, minutes, suggested: suggestTempBand(minutes, thresholds), latest: mine })
+  }
+  return out.sort((a, b) => b.brew.brewed_at.localeCompare(a.brew.brewed_at))
+}
 
 // ---- Detail scales: all 1–5, words only at 1 / 3 / 5 --------------------------------
 
 export type ScaleField =
-  | 'compass_sour_bitter'
-  | 'compass_weak_strong'
   | 'aroma'
   | 'acidity'
   | 'sweetness'
@@ -131,11 +122,6 @@ export interface ScaleDef {
 }
 
 const LMH: [string, string, string] = ['Low', 'Medium', 'High']
-
-export const COMPASS: ScaleDef[] = [
-  { field: 'compass_sour_bitter', label: 'Sour ↔ Bitter', words: ['Sour', 'Balanced', 'Bitter'] },
-  { field: 'compass_weak_strong', label: 'Weak ↔ Strong', words: ['Weak', 'Balanced', 'Strong'] },
-]
 
 export const PROFILE: ScaleDef[] = [
   { field: 'aroma', label: 'Aroma', words: LMH },
@@ -153,17 +139,6 @@ export const QUALITY: ScaleDef[] = [
 /** Accessible name for one step: the word where there is one, else "2 of 5". */
 export function stepName(def: ScaleDef, n: number): string {
   return n % 2 === 1 ? def.words[(n - 1) / 2] : `${n} of 5`
-}
-
-/** Dial-in hint from the compass, e.g. "Sour and weak: grind finer or brew longer". */
-export function compassHint(sourBitter: number | null, weakStrong: number | null): string | null {
-  const sb = sourBitter == null ? 0 : Math.sign(sourBitter - 3)
-  const ws = weakStrong == null ? 0 : Math.sign(weakStrong - 3)
-  if (sb < 0) return 'Sour: grind finer, brew hotter or longer'
-  if (sb > 0) return 'Bitter: grind coarser, brew cooler or shorter'
-  if (ws < 0) return 'Weak: use more coffee (or less water)'
-  if (ws > 0) return 'Strong: use less coffee (or more water)'
-  return null
 }
 
 // ---- Tags ----------------------------------------------------------------------------

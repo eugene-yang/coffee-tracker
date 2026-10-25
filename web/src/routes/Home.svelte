@@ -34,12 +34,11 @@
     {/each}
   </section>
 
-  {#if shortcuts.length}
-    <section class="stack">
-      <h2>Brew again</h2>
-      {#each shortcuts as s (s.brew.id)}<BrewShortcut shortcut={s} />{/each}
-    </section>
-  {/if}
+  <section class="stack">
+    <h2>{shortcuts.length ? 'Brew again' : 'Brew'}</h2>
+    {#each shortcuts as s (s.brew.id)}<BrewShortcut shortcut={s} />{/each}
+    <p class="muted"><a href={href('/inventory')}>Pick a bag in Inventory</a> to brew {shortcuts.length ? 'something else' : 'it'}.</p>
+  </section>
 
   <section class="stack">
     <h2>Recent</h2>
@@ -61,5 +60,8 @@
   }
   p {
     margin: 0;
+  }
+  p a {
+    color: var(--accent);
   }
 </style>

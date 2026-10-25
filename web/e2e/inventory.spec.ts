@@ -11,7 +11,7 @@ test('capture a bag, review the label, browse and search on phone and station', 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
   const page = await phone.newPage()
   await page.goto('/settings')
-  await page.getByLabel("New person's name").fill('Ana')
+  await page.getByLabel("New person's name").fill('Ines')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
 
   // One photo: the bag exists immediately, then its back / sticker can be added
@@ -141,7 +141,7 @@ test('phone: add several bags in one pick onto the shelf; the page frame never s
   expect(events).toEqual([])
 
   // Only the content area scrolls, so iOS can't drag the bottom bars around on short pages
-  for (const path of ['/', '/inventory', '/brew', '/settings']) { // settings is taller than the screen
+  for (const path of ['/', '/inventory', '/tastings', '/settings']) { // settings is taller than the screen
     await page.goto(path)
     await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)

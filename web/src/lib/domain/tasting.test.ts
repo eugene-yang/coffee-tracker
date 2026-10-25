@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_TEMP_BANDS } from './tempBand'
-import { compassHint, cycleBand, overallLabel, pendingTastings, stepName, toggleTag, PROFILE } from './tasting'
+import { cycleBand, latestTastings, overallLabel, pendingCups, pendingTastings, stepName, toggleTag, PROFILE } from './tasting'
 import type { Brew, Tasting } from './types'
 
 const NOW = Date.parse('2026-10-24T09:00:00Z')
@@ -12,81 +12,57 @@ const brew = (id: string, minAgo: number): Brew =>
 const tasting = (brewId: string, user: string, minAgo: number, band: Tasting['temp_band'], overall = 4): Tasting =>
   ({ id: `${brewId}-${user}-${minAgo}`, brew_id: brewId, taster_id: user, rated_at: ago(minAgo), temp_band: band, overall }) as Tasting
 
-const cards = (brews: Brew[], tastings: Tasting[], tasters = brews.map((b) => ({ brew_id: b.id, user_id: 'ana' }))) =>
-  pendingTastings(brews, tasters, tastings, NOW, DEFAULT_TEMP_BANDS)
+const cards = (brews: Brew[], tastings: Tasting[], user = 'ana') => pendingTastings(brews, tastings, NOW, DEFAULT_TEMP_BANDS, user)
 
 describe('pendingTastings', () => {
-  it('lists unrated cups with the band suggested from minutes since brewing, newest first', () => {
-    const out = cards([brew('a', 3), brew('b', 14)], [])
+  it('lists recent cups for anyone, whoever brewed them, with the band suggested from minutes since brewing', () => {
+    const out = cards([{ ...brew('a', 3), brewer_user_id: 'bo' }, brew('b', 14)], [])
     expect(out.map((c) => [c.brew.id, c.state, c.suggested, Math.round(c.minutes)])).toEqual([
       ['a', 'new', 'hot', 3],
       ['b', 'new', 'warm', 14],
     ])
+    expect(cards([brew('a', 3)], [], 'bo').map((c) => c.key)).toEqual(['a:bo'])
   })
 
-  it('makes one card per drinker and can narrow to one person', () => {
-    const tasters = [
-      { brew_id: 'a', user_id: 'ana' },
-      { brew_id: 'a', user_id: 'bo' },
-    ]
-    expect(cards([brew('a', 3)], [], tasters).map((c) => c.userId)).toEqual(['ana', 'bo'])
-    expect(pendingTastings([brew('a', 3)], tasters, [], NOW, DEFAULT_TEMP_BANDS, 'bo').map((c) => c.userId)).toEqual(['bo'])
+  it("shows a person's latest rating and count; others' ratings don't count as theirs", () => {
+    const ratings = [tasting('a', 'ana', 12, 'hot', 3), tasting('a', 'ana', 2, 'hot', 4), tasting('a', 'bo', 5, 'warm')]
+    const [c] = cards([brew('a', 20)], ratings)
+    expect([c.state, c.last?.overall, c.count]).toEqual(['rated', 4, 2])
+    expect(cards([brew('a', 20)], ratings, 'cy')[0].state).toBe('new')
   })
 
-  it("treats a brew nobody was marked drinking as the brewer's cup, and an unattributed one as the viewer's", () => {
-    const mine = { ...brew('a', 3), brewer_user_id: 'ana' }
-    const orphan = { ...brew('b', 5), brewer_user_id: null }
-    expect(pendingTastings([mine, orphan], [], [], NOW, DEFAULT_TEMP_BANDS).map((c) => c.key)).toEqual(['a:ana'])
-    expect(pendingTastings([mine, orphan], [], [], NOW, DEFAULT_TEMP_BANDS, 'bo').map((c) => c.key)).toEqual(['b:bo'])
-    // Someone marked as drinking: only they get the card
-    const tasters = [{ brew_id: 'a', user_id: 'bo' }]
-    expect(pendingTastings([mine], tasters, [], NOW, DEFAULT_TEMP_BANDS).map((c) => c.key)).toEqual(['a:bo'])
-  })
-
-  it('keeps a just-rated cup editable for 5 minutes', () => {
-    const [c] = cards([brew('a', 8)], [tasting('a', 'ana', 4, 'hot')])
-    expect(c.state).toBe('editing')
-    expect(c.last?.overall).toBe(4)
-  })
-
-  it('mutes a rated cup until it cools into the next band, then brings it back', () => {
-    const [waiting] = cards([brew('a', 8)], [tasting('a', 'ana', 6, 'hot')])
-    expect([waiting.state, waiting.nextBand]).toEqual(['waiting', 'warm'])
-    const [again] = cards([brew('a', 14)], [tasting('a', 'ana', 10, 'hot')])
-    expect([again.state, again.suggested]).toEqual(['again', 'warm'])
-  })
-
-  it('follows the band the taster chose, not the suggestion', () => {
-    // Rated at 4 min but it felt warm already: no "Warm now" prompt at 14 min
-    const [c] = cards([brew('a', 14)], [tasting('a', 'ana', 10, 'warm')])
-    expect([c.state, c.nextBand]).toEqual(['waiting', 'cool'])
-  })
-
-  it('drops the card once a cool tasting is out of its edit window', () => {
-    expect(cards([brew('a', 40)], [tasting('a', 'ana', 10, 'cool')])).toEqual([])
-    expect(cards([brew('a', 40)], [tasting('a', 'ana', 2, 'cool')])[0].state).toBe('editing')
-  })
-
-  it('puts muted cards after the ones to rate now', () => {
+  it('puts cups still to rate before rated ones', () => {
     const out = cards([brew('a', 8), brew('b', 20)], [tasting('a', 'ana', 6, 'hot')])
     expect(out.map((c) => [c.brew.id, c.state])).toEqual([
       ['b', 'new'],
-      ['a', 'waiting'],
+      ['a', 'rated'],
     ])
   })
 
-  it('uses the latest of several tastings', () => {
-    const [c] = cards([brew('a', 30)], [tasting('a', 'ana', 25, 'hot', 3), tasting('a', 'ana', 12, 'warm', 4)])
-    expect([c.state, c.last?.overall]).toEqual(['again', 4])
-  })
-
-  it('stops asking after a while', () => {
+  it('keeps unrated cups half a day and rated ones two hours on the list', () => {
+    expect(cards([brew('a', 11 * 60)], []).length).toBe(1)
     expect(cards([brew('a', 13 * 60)], [])).toEqual([])
+    expect(cards([brew('a', 100)], [tasting('a', 'ana', 90, 'hot')]).length).toBe(1)
     expect(cards([brew('a', 150)], [tasting('a', 'ana', 140, 'hot')])).toEqual([])
   })
+})
 
-  it('ignores drinkers of deleted brews', () => {
-    expect(cards([], [], [{ brew_id: 'gone', user_id: 'ana' }])).toEqual([])
+describe('pendingCups', () => {
+  it("lists each recent cup once with everyone's latest rating", () => {
+    const ratings = [tasting('a', 'ana', 9, 'hot', 3), tasting('a', 'ana', 1, 'warm', 5), tasting('a', 'bo', 4, 'hot', 2)]
+    const [c, d] = pendingCups([brew('a', 10), brew('b', 30)], ratings, NOW, DEFAULT_TEMP_BANDS)
+    expect(c.brew.id).toBe('a')
+    expect([...c.latest].map(([u, t]) => [u, t.overall])).toEqual([
+      ['ana', 5],
+      ['bo', 2],
+    ])
+    expect([d.brew.id, d.latest.size, d.suggested]).toEqual(['b', 0, 'cool'])
+    expect(pendingCups([brew('a', 150)], [tasting('a', 'bo', 140, 'hot')], NOW, DEFAULT_TEMP_BANDS)).toEqual([])
+  })
+
+  it('keeps every rating separate, even two at the same temperature', () => {
+    const latest = latestTastings([tasting('a', 'ana', 9, 'hot', 3), tasting('a', 'ana', 4, 'hot', 4)])
+    expect(latest.get('a:ana')?.overall).toBe(4)
   })
 })
 
@@ -102,13 +78,6 @@ describe('labels and scales', () => {
 
   it('has words only at 1, 3 and 5', () => {
     expect([1, 2, 3, 4, 5].map((n) => stepName(PROFILE[1], n))).toEqual(['Low', '2 of 5', 'Medium', '4 of 5', 'High'])
-  })
-
-  it('turns the compass into a dial-in hint', () => {
-    expect(compassHint(1, 2)).toMatch(/^Sour: grind finer/)
-    expect(compassHint(5, null)).toMatch(/^Bitter: grind coarser/)
-    expect(compassHint(3, 1)).toMatch(/^Weak/)
-    expect(compassHint(3, 3)).toBeNull()
   })
 })
 

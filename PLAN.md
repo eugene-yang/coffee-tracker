@@ -107,7 +107,7 @@ Conventions for every **synced** table:
 | `brewer` | name, method, filter, illustration? | `illustration` = key of a bundled SVG (e.g. `pour_over_cone`) | `method` ∈ `pour_over` `switch` `aeropress` `espresso` `siphon` `other` |
 | `recipe` | root_id, version, name, method, brewer_id?, grinder_id?, dose_g?, water_g?, yield_g?, temp_c?, grind_setting?, steps (JSON), note, author_id | **Immutable rows**; edit = insert new version |
 | `brew` | bag_id, brewer_user_id, method, brewer_id?, grinder_id?, grind_setting?, dose_g?, water_g?, yield_g?, temp_c?, time_s?, laps (JSON), extras (JSON), recipe_id?, recipe_version?, started_from (`brew_again` `recipe` `freestyle`), brewed_at, note | Snapshot of what was actually used |
-| `brew_taster` | brew_id, user_id | Who's drinking → pending cards / push |
+| `brew_taster` | brew_id, user_id | Legacy: who was marked drinking (no longer written; anyone rates any brew) |
 | `tasting` | brew_id, taster_id, rated_at, minutes_after_brew, temp_band, temp_band_suggested, overall, aroma, acidity, sweetness, body, aftertaste, balance, cleanness, compass_sour_bitter, compass_weak_strong, tags (JSON: `[{tag, source: roaster | tasted}]`), note, schema_version | Many per brew; all scales 1–5 |
 
 Server-only (not synced): `applied_op` (op_id, applied_at), `push_subscription` (user_id, endpoint, keys, device_label), `push_job` (brew_id, user_id, due_at, sent_at), `meta` (seq counter).
@@ -161,8 +161,8 @@ Single household, mostly append-only data → a small hand-rolled protocol.
 - `tools/extract_beans.py` stays as the offline eval harness; reviewed bags become ground truth later
 
 **Push scheduler**
-- On push of a `brew` + `brew_taster` rows, create `push_job` per taster with a subscription: `due_at = brewed_at + push_delay` (setting, default 5 min)
-- Loop every 30 s: send due jobs where that taster has no tasting for that brew yet; mark sent
+- Brews are due for their brewer at `brewed_at + push_delay` (setting, default 5 min), if the brewer has a subscription
+- Loop every 30 s: send due reminders where the brewer has no tasting for that brew yet; mark sent
 - Brews created offline arrive late → jobs older than a couple of hours are dropped instead of sent (avoid a burst of stale notifications); the in-app pending card still shows them
 - iOS: only works for the Home Screen app; prompt for permission from a button in settings (iOS requires a user gesture)
 
@@ -183,11 +183,12 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 | `/inventory` | List (80pt rows), sections, docked search, filter chips | Home: header (brewer avatar, flavor chips, More, Sort, sync dot) → ↻ Brew again shortcuts → grid → pending strip |
 | `/bag/:id` | Bag detail incl. review state ("Looks right"), events, brews & ratings, coffee fields | 360px side panel over the grid: Brew again, Recipe…, Open / Freeze / Finish, ±g |
 | `/capture` | Camera immediately, up to 3 shots, background save | — |
-| `/brew/:id` | Pre-start (chips + params summary) → live timer → Done · drinkers (prefilled) → "Save as recipe" | Same, full screen, 160px timer |
-| `/rate/:brewId` | More detail (profile, quality, compass, tags, other notes) | Same, opened from the stars sheet |
+| `/brew/:id` | Pre-start (own brewers + params summary) → live timer → Save brew → "Save as recipe" | Same, full screen, 160px timer |
+| `/rate/:brewId/:userId[/:tastingId]` | New rating, or Edit of one: profile, quality, tags, other notes; every rating of the cup | Same, opened from the stars sheet |
+| `/tastings` | Every rating, newest first; Mine · Everyone · one person | — |
 | `/settings` | Users, Equipment & recipes (grinders, brewers, recipes), thresholds, push, layout, sync | Users, sync, layout, thresholds (opened from the sync dot) |
 
-**Layouts**: `StationShell` (landscape, header 56 / shortcuts 80 / grid + side panel, 72px primary targets) vs. `PhoneShell` (bottom tabs Home · Inventory · Brew · Settings). Picked by viewport (≥ 900 px wide and landscape → station) with a per-device override in local storage. Screens are shared; shells differ.
+**Layouts**: `StationShell` (landscape, header 56 / shortcuts 80 / grid + side panel, 72px primary targets) vs. `PhoneShell` (bottom tabs Home · Inventory · Tastings · Settings). Picked by viewport (≥ 900 px wide and landscape → station) with a per-device override in local storage. Screens are shared; shells differ.
 
 **Data layer**: Svelte stores read from IndexedDB; all writes through `mutate()`. Screens never call the network directly.
 
@@ -262,6 +263,7 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
   - A card is *new* (unrated, up to 12 h after brewing) → *editing* (5 min from the tasting's `rated_at`; stars and chip update that tasting) → *waiting* (muted, "Rate again when Warm") → *again* when the suggested band passes the band the taster **chose** ("Warm now · 18 min"); re-rate prompts stop 2 h after brewing or after a Cool tasting
   - More detail binds to one tasting (`/rate/:brewId/:userId/:tastingId`), so a long detail session never splits; without an id the first star starts a new tasting. Detail controls stay disabled until there's an overall score
   - Compass is stored 1–5 like every scale (3 = balanced) and shows a dial-in hint; tag `source` is `roaster` when the coffee's roaster notes list the tag, else `tasted`
+  - Later (UI feedback): no drinkers — anyone rates any cup; no edit window or band gates — every star tap is a new tasting, Edit is explicit; compass removed from the rate screen; the station strip shows one card per cup with everyone's avatars
   - Station: inline stars + chip per person in the pending strip (toast with undo); avatar → stars sheet (name at 32px, closes 1.5 s after a star). Notes are typed on the phone only
 
 **M4 — Push + hardening (M)**

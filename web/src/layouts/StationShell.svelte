@@ -3,6 +3,7 @@
   import Avatar from '../components/Avatar.svelte'
   import SyncDot from '../components/SyncDot.svelte'
   import IdleScreen from '../components/IdleScreen.svelte'
+  import ResumeBrew from '../components/ResumeBrew.svelte'
   import { device, setDeviceUser } from '../lib/state/device.svelte'
   import { users } from '../lib/state/live.svelte'
   import { href, route } from '../lib/state/router.svelte'
@@ -47,6 +48,7 @@
     </div>
   {/if}
 
+  <ResumeBrew />
   <main>{@render children()}</main>
   <IdleScreen />
 </div>

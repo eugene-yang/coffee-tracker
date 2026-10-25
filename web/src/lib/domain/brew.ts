@@ -114,13 +114,6 @@ export function brewAgainShortcuts(brews: Brew[], userId: string | null, isUsabl
   return out
 }
 
-/** Who's drinking, prefilled: whoever drank this person's last brew, else just them. */
-export function suggestDrinkers(allBrews: Brew[], tasters: { brew_id: string; user_id: string }[], brewerUserId: string | null): string[] {
-  const last = allBrews.filter((b) => b.brewer_user_id === brewerUserId).sort(newestFirst)[0]
-  const prev = last ? tasters.filter((t) => t.brew_id === last.id).map((t) => t.user_id) : []
-  return prev.length ? prev : brewerUserId ? [brewerUserId] : []
-}
-
 /** Grams used per bag, for "grams left". */
 export function gramsUsedByBag(brews: Brew[]): Map<string, number> {
   const used = new Map<string, number>()

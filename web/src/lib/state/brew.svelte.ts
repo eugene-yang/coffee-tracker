@@ -2,10 +2,10 @@
 // elapsed time is always computed from the start timestamp, never counted.
 import { mutate, nowIso, remove } from '../db/local'
 import { uuidv7 } from '../db/uuid'
-import { brewAgainSource, defaultParams, paramsOf, pickBrewer, pickGrinder, suggestDrinkers } from '../domain/brew'
+import { brewAgainSource, defaultParams, paramsOf, pickBrewer, pickGrinder } from '../domain/brew'
 import type { BrewParams, Recipe, StartedFrom } from '../domain/types'
 import { device } from './device.svelte'
-import { brewers, brews, brewTasters, grinders } from './live.svelte'
+import { brewers, brews, grinders } from './live.svelte'
 
 export interface BrewDraft {
   id: string
@@ -19,7 +19,6 @@ export interface BrewDraft {
   startedAt: number | null
   stoppedAt: number | null
   laps: number[]
-  drinkers: string[]
 }
 
 const KEY = 'coffee.brewDraft'
@@ -91,7 +90,6 @@ class BrewState {
       startedAt: null,
       stoppedAt: null,
       laps: [],
-      drinkers: [],
     }
     this.save()
     return this.draft
@@ -129,7 +127,7 @@ class BrewState {
     this.save()
   }
 
-  /** Stop the timer and suggest who's drinking: whoever drank this person's last brew, else just them. */
+  /** Stop the timer (or skip it: log without timer); time and yield can still be adjusted before saving. */
   stop() {
     const d = this.draft
     if (!d) return
@@ -139,18 +137,10 @@ class BrewState {
     d.phase = 'stopped'
     const time = Math.round(this.elapsedS())
     if (d.startedAt) d.params = { ...d.params, time_s: time }
-    d.drinkers = suggestDrinkers(brews.rows, brewTasters.rows, d.brewerUserId)
     this.save()
   }
 
-  toggleDrinker(userId: string) {
-    const d = this.draft
-    if (!d) return
-    d.drinkers = d.drinkers.includes(userId) ? d.drinkers.filter((u) => u !== userId) : [...d.drinkers, userId]
-    this.save()
-  }
-
-  /** Save the brew and who's drinking. Returns the saved brew's id. */
+  /** Save the brew; anyone can rate it afterwards. Returns the saved brew's id. */
   async finish(): Promise<string> {
     const d = $state.snapshot(this.draft)
     if (!d) throw new Error('no brew in progress')
@@ -176,7 +166,6 @@ class BrewState {
       brewed_at: nowIso(),
       note: null,
     })
-    for (const u of d.drinkers) await mutate('brew_taster', `${d.id}:${u}`, { brew_id: d.id, user_id: u })
     this.draft = null
     this.save()
     return d.id
@@ -193,10 +182,9 @@ class BrewState {
   }
 }
 
-/** Undo a just-saved brew (and its drinkers). */
-export async function undoBrew(brewId: string, drinkers: string[]): Promise<void> {
-  for (const u of drinkers) await remove('brew_taster', `${brewId}:${u}`)
-  await remove('brew', brewId)
+/** Undo a just-saved brew. */
+export function undoBrew(brewId: string): Promise<unknown> {
+  return remove('brew', brewId)
 }
 
 export const brewState = new BrewState()

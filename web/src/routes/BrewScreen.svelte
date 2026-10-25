@@ -1,7 +1,6 @@
 <script lang="ts">
-  // One brew: setup (Brew again / recipe / freestyle, steppers) → timer → who's drinking → saved
+  // One brew: setup (Brew again / recipe / freestyle, steppers) → timer → time check → saved; anyone can rate it after
   import { onDestroy, onMount, untrack } from 'svelte'
-  import Avatar from '../components/Avatar.svelte'
   import BrewerArt from '../components/BrewerArt.svelte'
   import RecipeForm from '../components/RecipeForm.svelte'
   import Stepper from '../components/Stepper.svelte'
@@ -57,7 +56,7 @@
 
   let adjusting = $state(false)
   let pickingRecipe = $state(false)
-  let saved = $state<{ id: string; drinkers: string[] } | null>(null)
+  let saved = $state<{ id: string } | null>(null)
   let savingRecipe = $state(false)
 
   // Only the household's own equipment is offered; every brew is linked to the brewer and grinder used
@@ -68,6 +67,8 @@
   const hasAgain = $derived(!!brewAgainSource(brews.rows, bagId, device.userId, p?.method, p?.brewer_id))
   const missingKit = $derived([!brewers.rows.length && 'brewer', !grinders.rows.length && 'grinder'].filter(Boolean).join(' and '))
   const brewerUserId = $derived(draft?.brewerUserId ?? device.userId)
+  // Every brew is someone's: no brewing until this device (or the station's "Who's brewing?") has a person
+  const brewingAs = $derived(users.get(brewerUserId))
 
   function chooseBrewer(id: string) {
     if (!draft || p?.brewer_id === id) return
@@ -110,14 +111,13 @@
   }
 
   async function finish() {
-    const drinkers = [...(draft?.drinkers ?? [])]
     const espresso = isEspresso(p?.method)
     const params = p ? $state.snapshot(p) : null
     const id = await brewState.finish()
-    saved = { id, drinkers }
+    saved = { id }
     allowSleepAfter()
     showToast('Brew saved', () => {
-      undoBrew(id, drinkers)
+      undoBrew(id)
       saved = null
     })
     if (espresso && params) lastEspresso = params
@@ -141,8 +141,6 @@
   }
 
   const savedBrew = $derived(saved ? brews.get(saved.id) : undefined)
-
-  const drinkerNames = $derived((draft?.drinkers ?? []).map((u) => users.get(u)?.name ?? '?').join(' + '))
 </script>
 
 {#if !view}
@@ -275,8 +273,13 @@
           </ol>
         {/if}
 
-        <button class="primary huge" onclick={start}>Start</button>
-        <button class="link" onclick={() => brewState.stop()}>Log without timer</button>
+        {#if !brewingAs && users.loaded}
+          <p class="card who-hint">
+            {#if layout === 'station'}Pick who's brewing at the top first.{:else}Add yourself in <a href={href('/settings')}>Settings</a> first, so the brew is recorded under your name.{/if}
+          </p>
+        {/if}
+        <button class="primary huge" onclick={start} disabled={!brewingAs}>Start</button>
+        <button class="link" onclick={() => brewState.stop()} disabled={!brewingAs}>Log without timer</button>
       </div>
     {:else if draft.phase === 'running'}
       <div class="timer">
@@ -306,22 +309,7 @@
           <Stepper label="Yield" unit="g" value={p.yield_g} onchange={(v) => brewState.update({ yield_g: v })} />
         {/if}
         <Stepper label="Time" unit="s" step={5} value={p.time_s} onchange={(v) => brewState.update({ time_s: v })} />
-        <h2>Who's drinking?</h2>
-        <div class="chips" role="group" aria-label="Who's drinking">
-          {#each users.rows as u (u.id)}
-            <button
-              class="chip person"
-              class:on={draft.drinkers.includes(u.id)}
-              aria-pressed={draft.drinkers.includes(u.id)}
-              onclick={() => brewState.toggleDrinker(u.id)}
-            >
-              <Avatar user={u} size={32} />{u.name}
-            </button>
-          {:else}
-            <p class="muted kit-hint">Add yourself in <a href={href('/settings')}>Settings</a> to rate the cups you drink.</p>
-          {/each}
-        </div>
-        <button class="primary huge" onclick={finish}>Done{drinkerNames ? ` · ${drinkerNames}` : ''}</button>
+        <button class="primary huge" onclick={finish} disabled={!brewingAs}>Save brew</button>
       </div>
     {/if}
   </div>
@@ -369,8 +357,7 @@
     gap: 8px;
     white-space: nowrap;
   }
-  .chip.brewer,
-  .chip.person {
+  .chip.brewer {
     padding-left: 6px;
   }
   .chip.on {
@@ -381,8 +368,13 @@
     margin: 0;
     font-size: 14px;
   }
-  .kit-hint a {
+  .kit-hint a,
+  .who-hint a {
     color: var(--accent);
+  }
+  .who-hint {
+    margin: 0;
+    border-color: var(--accent);
   }
   .summary {
     display: flex;

@@ -15,7 +15,6 @@ import {
   stepsToText,
   timerView,
   defaultParams,
-  suggestDrinkers,
   pickBrewer,
   pickGrinder,
   brewerLabel,
@@ -159,20 +158,5 @@ describe('params', () => {
     const steps = parseSteps('0:00 Bloom 50g\n0:45 pour to 150 g\nswirl gently')
     expect(steps).toEqual([{ at_s: 0, to_g: 50, label: 'Bloom' }, { at_s: 45, to_g: 150, label: 'pour' }, { label: 'swirl gently' }])
     expect(stepsToText(steps)).toBe('0:00 Bloom 50g\n0:45 pour 150g\nswirl gently')
-  })
-})
-
-describe('who is drinking', () => {
-  it("suggests whoever drank the brewer's last brew, else the brewer", () => {
-    const brews = [brew('kii', 'eugene', 'pour_over', 1), brew('kii', 'eugene', 'pour_over', 2), brew('kii', 'ana', 'pour_over', 3)]
-    const last = brews[1]
-    const tasters = [
-      { brew_id: brews[0].id, user_id: 'zoe' },
-      { brew_id: last.id, user_id: 'eugene' },
-      { brew_id: last.id, user_id: 'ana' },
-    ]
-    expect(suggestDrinkers(brews, tasters, 'eugene').sort()).toEqual(['ana', 'eugene'])
-    expect(suggestDrinkers(brews, [], 'ana')).toEqual(['ana'])
-    expect(suggestDrinkers([], [], null)).toEqual([])
   })
 })

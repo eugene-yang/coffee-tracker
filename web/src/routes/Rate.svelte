@@ -1,6 +1,8 @@
 <script lang="ts">
-  // More detail for one tasting: profile → quality → compass → flavors → other notes. Every tap saves.
-  // /rate/:brewId/:userId[/:tastingId] — without a tasting id, the first star starts a new tasting.
+  // More detail for one rating: profile → quality → flavors → other notes. Every tap saves.
+  // /rate/:brewId/:userId[/:tastingId] — without a tasting id it's a new rating (the first star starts it);
+  // with one, it's an explicit edit of that rating, which keeps its time.
+  // Below: every rating of this cup, by anyone, in order.
   import { onDestroy } from 'svelte'
   import Avatar from '../components/Avatar.svelte'
   import Scale from '../components/Scale.svelte'
@@ -8,15 +10,15 @@
   import TempChip from '../components/TempChip.svelte'
   import { brewerLabel } from '../lib/domain/brew'
   import { FLAVOR_FAMILIES, flavorTag } from '../lib/domain/flavors'
-  import { COMPASS, PROFILE, QUALITY, compassHint, cycleBand, minutesSince } from '../lib/domain/tasting'
-  import { suggestTempBand, type TempBand } from '../lib/domain/tempBand'
+  import { PROFILE, QUALITY, TEMP_BAND_LABELS, cycleBand, minutesSince, overallLabel } from '../lib/domain/tasting'
+  import { suggestTempBand } from '../lib/domain/tempBand'
   import type { Tasting } from '../lib/domain/types'
   import { currentLayout, device } from '../lib/state/device.svelte'
   import { inventory } from '../lib/state/inventory.svelte'
   import { brewers, brews, tastings, users } from '../lib/state/live.svelte'
-  import { navigate, replace, route } from '../lib/state/router.svelte'
-  import { timeAgo } from '../lib/state/shortcuts.svelte'
-  import { rateOverall, tastingState, toggleTastingTag, updateTasting } from '../lib/state/tastings.svelte'
+  import { href, navigate, replace, route } from '../lib/state/router.svelte'
+  import { dateTime, timeAgo } from '../lib/state/shortcuts.svelte'
+  import { rateCup, rateLink, tastingState, toggleTastingTag, updateTasting } from '../lib/state/tastings.svelte'
 
   const parts = $derived(route.path.split('/'))
   const brewId = $derived(parts[2] ?? '')
@@ -31,21 +33,25 @@
 
   const minutes = $derived(brew ? minutesSince(brew.brewed_at, tastingState.now) : 0)
   const suggested = $derived(suggestTempBand(minutes, tastingState.thresholds))
-  let override = $state<TempBand | null>(null)
-  const band = $derived(tasting?.temp_band ?? override ?? suggested)
+  const band = $derived(tasting?.temp_band ?? (brew && userId ? tastingState.bandFor(brew, userId) : suggested))
+  // When the rating was given (an edit keeps it), or now for a new one
+  const at = $derived(tasting ? (tasting.minutes_after_brew ?? minutesSince(brew?.brewed_at ?? '', Date.parse(tasting.rated_at))) : minutes)
 
   async function rate(n: number) {
     if (tasting) return updateTasting(tasting.id, { overall: n })
-    if (!brew || !userId) return
-    const { id } = await rateOverall(brew, userId, n, band, suggested, undefined)
-    replace(`/rate/${brewId}/${userId}/${id}`)
+    if (!brew || !user) return
+    const { id } = await rateCup(brew, user.id, n, band, suggested)
+    replace(rateLink(brewId, user.id, id))
   }
 
   function cycle() {
-    const next = cycleBand(band)
-    if (tasting) updateTasting(tasting.id, { temp_band: next })
-    else override = next
+    if (tasting) updateTasting(tasting.id, { temp_band: cycleBand(band) })
+    else if (brew && userId) tastingState.cycle(brew, userId)
   }
+
+  const cupRatings = $derived(
+    tastings.rows.filter((t) => t.brew_id === brewId).sort((a, b) => a.rated_at.localeCompare(b.rated_at)),
+  )
 
   const set = (patch: Partial<Tasting>) => tasting && updateTasting(tasting.id, patch)
   const hasTag = (t: string) => !!tasting?.tags?.some((x) => x.tag === t)
@@ -73,8 +79,6 @@
   }
   onDestroy(saveNote)
 
-  const hint = $derived(tasting ? compassHint(tasting.compass_sour_bitter, tasting.compass_weak_strong) : null)
-
   function back() {
     saveNote()
     if (history.length > 1) history.back()
@@ -84,6 +88,14 @@
 
 {#if !brew}
   <p class="muted">{brews.loaded ? 'This brew doesn’t exist (anymore).' : 'Loading…'}</p>
+{:else if users.loaded && (!user || (layout === 'phone' && !users.get(device.userId)))}
+  <div class="card stack">
+    <strong>Who's tasting?</strong>
+    <p class="muted">
+      {layout === 'station' ? "Pick who's brewing at the top first, so the rating is recorded under a name." : 'Add yourself in Settings first, so ratings are recorded under your name.'}
+    </p>
+    <button class="primary" onclick={() => navigate('/settings')}>Go to Settings</button>
+  </div>
 {:else}
   <div class="rate {layout}">
     <button class="back" onclick={back}>‹ Back</button>
@@ -95,11 +107,14 @@
         <span class="muted">{user?.name ?? '?'} · {brewerLabel(brew, brewers.rows)} · brewed {timeAgo(brew.brewed_at, tastingState.now)}</span>
       </span>
     </header>
+    <p class="mode">
+      {#if tasting}Editing the rating from {dateTime(tasting.rated_at)}{:else}New rating{/if}
+    </p>
 
     <section class="overall">
       <div class="row">
         <Stars value={tasting?.overall} label="Overall" onrate={rate} />
-        <TempChip {band} {minutes} oncycle={cycle} />
+        <TempChip {band} minutes={at} oncycle={cycle} />
       </div>
       {#if !tasting}<p class="muted">Start with the stars — everything below saves as you go.</p>{/if}
     </section>
@@ -118,15 +133,6 @@
         {#each QUALITY as def (def.field)}
           <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
         {/each}
-      </section>
-
-      <section class="card stack">
-        <h2>Compass</h2>
-        {#each COMPASS as def (def.field)}
-          <Scale {def} value={tasting?.[def.field]} disabled={!tasting} onchange={(v) => set({ [def.field]: v })} />
-        {/each}
-        <p class="help">“Sour” is a judgment — sharp and unpleasant, often under-extracted. It isn’t the same as high acidity, which can be bright and lovely.</p>
-        {#if hint}<p class="hint">{hint}</p>{/if}
       </section>
 
       <section class="card stack">
@@ -170,6 +176,29 @@
         {/if}
       </section>
     </fieldset>
+
+    <section class="stack" aria-label="Ratings of this cup">
+      <h2>Ratings of this cup</h2>
+      {#each cupRatings as t (t.id)}
+        {@const who = users.get(t.taster_id)}
+        <div class="rating" class:current={t.id === tasting?.id}>
+          <Avatar user={who} size={28} />
+          <span class="text">
+            <span><span class="lit">{'★'.repeat(t.overall ?? 0)}</span> {overallLabel(t.overall)} · {TEMP_BAND_LABELS[t.temp_band ?? 'hot']}</span>
+            <span class="muted">{who?.name ?? '?'} · {dateTime(t.rated_at)}{t.minutes_after_brew != null ? ` · ${Math.round(t.minutes_after_brew)} min after brewing` : ''}</span>
+          </span>
+          {#if t.id !== tasting?.id}<a href={href(rateLink(brewId, t.taster_id, t.id))}>Edit</a>{/if}
+        </div>
+      {:else}
+        <p class="muted">No ratings yet.</p>
+      {/each}
+      {#if tasting && user}
+        <button onclick={() => {
+          saveNote()
+          navigate(rateLink(brewId, user.id))
+        }}>Rate again</button>
+      {/if}
+    </section>
 
     <button class="primary done" onclick={back}>Done</button>
   </div>
@@ -233,9 +262,40 @@
     font-size: 14px;
     color: var(--text-muted);
   }
-  .hint {
+  .mode {
     margin: 0;
     font-weight: 600;
+  }
+  .rating {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .rating.current {
+    font-weight: 600;
+  }
+  .rating .text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .rating .muted {
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .rating a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .lit {
+    color: var(--accent);
   }
   .chips {
     display: flex;
