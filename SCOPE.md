@@ -54,7 +54,8 @@ Multiple people share one inventory; each has their own tastings and preferences
   - Each taster gets a pending-tasting card / push on their own phone
   - On the station, tap an avatar in the pending strip → stars sheet with that person's name at 32px, closes 1.5 s after a tap, with undo
 - Anyone can brew for anyone — the brewer and the tasters are independent
-- **Brew again** defaults to the current user's last brew for this bag × method, falls back to anyone's
+- **Brew again** defaults to the current user's last brew for this bag × brewer (older brews without a brewer match by method), falls back to anyone's
+- A brew saved with nobody marked as drinking is the brewer's cup to rate
 - Push subscriptions are per user × device
 - Ratings are personal scales — compare within a person, not raw scores across people
 - Every device syncs all users' data (small)
@@ -80,15 +81,16 @@ Multiple people share one inventory; each has their own tastings and preferences
   - Roaster, name, roast date, weight first; the rest collapsed
   - One **"Looks right"** button accepts everything; VLM-filled fields carry a dot until confirmed
   - Needs-review bags are brewable right away as "Untitled · Oct 21"
-- Capture opens the camera immediately (or "From photos" picks up to 3 from the library); after each shot "Add another · Done" (max 3); saves in the background
+- One **Add bags** button (the system picker offers camera, photo library and files); each photo picked is one bag, so several bags can be added at once. A single photo goes on to "Add another · Done" for the back / sticker (max 3); saves in the background
 - Autocomplete + aliases for roaster / process / variety / origin (Gesha = Geisha, Fully Washed = Washed)
 - Store raw VLM output, model, prompt version, and which fields the user corrected
 - Bag status: Resting / Open / Frozen / Finished; grams remaining (derived, manual adjust as an event)
   - New bags go straight into the freezer by default (setting: Freezer · Shelf); freezer time doesn't count toward age
+  - Frozen bags are regular stock: brewed straight from the freezer (the rest goes back), so they're listed and pickable like any other
 
 ### Inventory browsing — the most-used feature
 Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIEW.md` §2.
-- **Sections** (only shown when non-empty): Needs review (phone, pinned) · Open · Ready (unopened, past rest window) · Resting · Frozen (collapsed, count) · Finished (hidden; greyed in search results only)
+- **Sections** (only shown when non-empty): Needs review (phone, pinned) · Open · Ready (unopened, past rest window) · Resting · Frozen (count; never collapsed) · Finished (hidden; greyed in search results only)
 - **Default sort**: Open → least left first (finish bags); Ready → oldest effective age first; Resting → soonest ready first
   - "Sort" chip: Recently added · Roast date · My rating · Roaster A–Z
 - **Tile**: square bag-front thumb · roaster (small caps) · coffee name (max 2 lines) · `Origin · Process` · freshness bar + "Day 12" · **"~4 cups"** left (grams in small text) · my avg rating · one reserved line for "why it matched" (later "why recommended")
@@ -109,7 +111,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
 - Equipment, added from settings (one grinder today, more later):
   - **Grinder**: name, setting format hint (numbers, clicks, `2.3.1`…)
   - **Method** — fixed list with an icon each: Pour-over, Hario Switch, AeroPress, Espresso, Siphon, Other
-  - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name, method, filter as free text
+  - **Brewer** — the actual device, many per method (e.g. several pour-over drippers): name (defaults to the brewer picked), method, filter as free text
   - Icons: no open-license set covers all five methods → small custom line-icon SVG set drawn in-house (inline, `currentColor`, works in dark theme); brewers show their method icon by default
   - Brewer pictures: **illustrations created by an agent at development time** for the equipment owned today (Pour-over drippers, Hario Switch, AeroPress, Espresso, Siphon), in one consistent house style
     - Shipped as static SVG assets with the app (theme colors via CSS variables, dark-theme friendly, small, offline)
@@ -125,7 +127,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - Recipes are mostly created via **"Save as recipe"** after a brew; managed under Settings → Equipment & recipes
 - **Brews start from a bag** (no separate new-brew wizard): bag → **Brew again** (last brew for this bag × method, incl. grind setting) as the primary action; "Recipe…" / freestyle as secondary
   - Station also shows ↻ Brew again shortcuts for the current brewer above the inventory grid
-- Live brew screen has a pre-start state: method / brewer chips preselected, recipe chip, params summary `15 g · 250 g · 22 · 94°` — tap one for a stepper
+- Live brew screen has a pre-start state: the household's own brewers (and grinders, when more than one) preselected — never the generic method list — recipe chip, params summary `15 g · 250 g · 22 · 94°` — tap one for a stepper
 - Brew deviates freely from its recipe — the brew keeps its own snapshot
 - Timer: steps with times become cues; otherwise a plain stopwatch with laps
 - Espresso is a preset of the same live brew screen (yield, time, "Pull another" dial-in loop), not separate screens

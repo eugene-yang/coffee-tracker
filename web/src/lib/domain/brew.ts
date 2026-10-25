@@ -1,5 +1,5 @@
 // Brewing logic: methods and their defaults, "Brew again", shortcuts, recipe versions, timer steps.
-import type { Brew, BrewParams, Recipe, RecipeStep } from './types'
+import type { Brew, BrewParams, Brewer, Grinder, Recipe, RecipeStep } from './types'
 
 export const METHODS = ['pour_over', 'switch', 'aeropress', 'espresso', 'siphon', 'other'] as const
 export type Method = (typeof METHODS)[number]
@@ -45,17 +45,53 @@ export function paramsOf(src: Brew | Recipe): BrewParams {
 const newestFirst = (a: Brew, b: Brew) => b.brewed_at.localeCompare(a.brewed_at)
 
 /**
- * "Brew again" source: this person's last brew of this bag (with this method, if given),
- * else anyone's last brew of this bag, else this person's last brew of the method on any bag.
+ * "Brew again" source: this person's last brew of this bag (with this brewer or method, if given),
+ * else anyone's last brew of this bag, else this person's last brew with the brewer / method on any bag.
+ * Brews saved before they were linked to a brewer match by method.
  */
-export function brewAgainSource(brews: Brew[], bagId: string, userId: string | null, method?: string): Brew | undefined {
+export function brewAgainSource(brews: Brew[], bagId: string, userId: string | null, method?: string, brewerId?: string | null): Brew | undefined {
   const sorted = [...brews].sort(newestFirst)
-  const sameMethod = (b: Brew) => !method || b.method === method
+  const sameKit = (b: Brew) =>
+    brewerId ? b.brewer_id === brewerId || (!b.brewer_id && b.method === method) : !method || b.method === method
   return (
-    sorted.find((b) => b.bag_id === bagId && sameMethod(b) && b.brewer_user_id === userId) ??
-    sorted.find((b) => b.bag_id === bagId && sameMethod(b)) ??
-    (method ? sorted.find((b) => b.method === method && b.brewer_user_id === userId) : undefined)
+    sorted.find((b) => b.bag_id === bagId && sameKit(b) && b.brewer_user_id === userId) ??
+    sorted.find((b) => b.bag_id === bagId && sameKit(b)) ??
+    (method || brewerId ? sorted.find((b) => sameKit(b) && b.brewer_user_id === userId) : undefined)
   )
+}
+
+/** The most recently used piece of equipment that passes `fits`: this person's, else anyone's. */
+function lastUsed<T extends { id: string }>(owned: T[], brews: Brew[], userId: string | null, idOf: (b: Brew) => string | null, fits: (e: T) => boolean): T | undefined {
+  const byId = new Map(owned.map((e) => [e.id, e]))
+  const sorted = [...brews].sort(newestFirst)
+  const find = (mine: boolean) => {
+    for (const b of sorted) {
+      const e = byId.get(idOf(b) ?? '')
+      if (e && (!mine || b.brewer_user_id === userId) && fits(e)) return e
+    }
+  }
+  return find(true) ?? find(false)
+}
+
+/**
+ * Which of the household's own brewers a brew uses: the one asked for, else the most recently used
+ * one (this person's first, of the method if given), else the first one (of the method).
+ */
+export function pickBrewer(owned: Brewer[], brews: Brew[], userId: string | null, want: { brewerId?: string | null; method?: string }): Brewer | undefined {
+  const asked = owned.find((b) => b.id === want.brewerId)
+  if (asked) return asked
+  const fits = (b: Brewer) => !want.method || b.method === want.method
+  return lastUsed(owned, brews, userId, (b) => b.brewer_id, fits) ?? owned.find(fits)
+}
+
+/** Which grinder a brew uses: the one asked for if it's still owned, else the most recently used one, else the first. */
+export function pickGrinder(owned: Grinder[], brews: Brew[], userId: string | null, grinderId: string | null): Grinder | undefined {
+  return owned.find((g) => g.id === grinderId) ?? lastUsed(owned, brews, userId, (b) => b.grinder_id, () => true) ?? owned[0]
+}
+
+/** "V60" for a brew linked to a brewer, the method ("Pour-over") for older ones. */
+export function brewerLabel(src: { brewer_id: string | null; method: string | null }, owned: Brewer[]): string {
+  return owned.find((b) => b.id === src.brewer_id)?.name || methodLabel(src.method)
 }
 
 export interface Shortcut {
@@ -63,13 +99,13 @@ export interface Shortcut {
   brew: Brew
 }
 
-/** The person's most recent distinct bag × method brews, for bags still in use. */
+/** The person's most recent distinct bag × brewer (or method, for older brews) brews, for bags still in use. */
 export function brewAgainShortcuts(brews: Brew[], userId: string | null, isUsable: (bagId: string) => boolean, max = 3): Shortcut[] {
   const seen = new Set<string>()
   const out: Shortcut[] = []
   for (const b of [...brews].sort(newestFirst)) {
     if (b.brewer_user_id !== userId || !isUsable(b.bag_id)) continue
-    const key = `${b.bag_id}:${b.method}`
+    const key = `${b.bag_id}:${b.brewer_id ?? b.method}`
     if (seen.has(key)) continue
     seen.add(key)
     out.push({ bagId: b.bag_id, brew: b })

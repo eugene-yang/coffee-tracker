@@ -20,7 +20,7 @@ class TastingState {
   }
 
   forUser(userId: string | null): PendingTasting[] {
-    return this.all.filter((p) => p.userId === userId)
+    return pendingTastings(brews.rows, brewTasters.rows, tastings.rows, this.now, this.thresholds, userId)
   }
 
   // Band picked on a card before its first star (keyed brew_id:user_id), shared by the strip and the sheet

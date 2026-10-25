@@ -6,14 +6,14 @@
   import Scale from '../components/Scale.svelte'
   import Stars from '../components/Stars.svelte'
   import TempChip from '../components/TempChip.svelte'
-  import { methodLabel } from '../lib/domain/brew'
+  import { brewerLabel } from '../lib/domain/brew'
   import { FLAVOR_FAMILIES, flavorTag } from '../lib/domain/flavors'
   import { COMPASS, PROFILE, QUALITY, compassHint, cycleBand, minutesSince } from '../lib/domain/tasting'
   import { suggestTempBand, type TempBand } from '../lib/domain/tempBand'
   import type { Tasting } from '../lib/domain/types'
   import { currentLayout, device } from '../lib/state/device.svelte'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { brews, tastings, users } from '../lib/state/live.svelte'
+  import { brewers, brews, tastings, users } from '../lib/state/live.svelte'
   import { navigate, replace, route } from '../lib/state/router.svelte'
   import { timeAgo } from '../lib/state/shortcuts.svelte'
   import { rateOverall, tastingState, toggleTastingTag, updateTasting } from '../lib/state/tastings.svelte'
@@ -92,7 +92,7 @@
       <Avatar {user} size={layout === 'station' ? 56 : 40} />
       <span class="titles">
         <strong>{view?.title ?? 'Bag'}</strong>
-        <span class="muted">{user?.name ?? '?'} · {methodLabel(brew.method)} · brewed {timeAgo(brew.brewed_at, tastingState.now)}</span>
+        <span class="muted">{user?.name ?? '?'} · {brewerLabel(brew, brewers.rows)} · brewed {timeAgo(brew.brewed_at, tastingState.now)}</span>
       </span>
     </header>
 

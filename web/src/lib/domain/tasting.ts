@@ -65,7 +65,11 @@ export function latestTastings(tastings: Tasting[]): Map<string, Tasting> {
   return latest
 }
 
-/** Pending-tasting cards for everyone drinking a recent brew (or one person): ones to rate now first, newest brew first. */
+/**
+ * Pending-tasting cards for everyone drinking a recent brew (or one person): ones to rate now first, newest brew first.
+ * A brew saved with nobody marked as drinking is the brewer's cup; one saved before the device had a
+ * person at all is offered to `userId` (the person looking), so it can still be rated.
+ */
 export function pendingTastings(
   brews: Brew[],
   tasters: { brew_id: string; user_id: string }[],
@@ -77,7 +81,12 @@ export function pendingTastings(
   const byId = new Map(brews.map((b) => [b.id, b]))
   const latest = latestTastings(tastings)
   const out: PendingTasting[] = []
-  for (const bt of tasters) {
+  const drunk = new Set(tasters.map((t) => t.brew_id))
+  const implied = brews.flatMap((b) => {
+    const user = b.brewer_user_id ?? userId
+    return drunk.has(b.id) || !user ? [] : [{ brew_id: b.id, user_id: user }]
+  })
+  for (const bt of [...tasters, ...implied]) {
     if (userId !== undefined && bt.user_id !== userId) continue
     const brew = byId.get(bt.brew_id)
     if (!brew) continue

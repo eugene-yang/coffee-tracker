@@ -1,10 +1,10 @@
 <script lang="ts">
   import Avatar from './Avatar.svelte'
   import MethodIcon from './MethodIcon.svelte'
-  import { methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import { inventory } from '../lib/state/inventory.svelte'
   import { latestTastings } from '../lib/domain/tasting'
-  import { brews, tastings, users } from '../lib/state/live.svelte'
+  import { brewers, brews, tastings, users } from '../lib/state/live.svelte'
   import { timeAgo } from '../lib/state/shortcuts.svelte'
 
   let { limit = 8 }: { limit?: number } = $props()
@@ -19,7 +19,7 @@
     <MethodIcon method={b.method} />
     <span class="text">
       <strong>{inventory.byId.get(b.bag_id)?.title ?? 'Bag'}</strong>
-      <span class="muted">{methodLabel(b.method)} · {paramSummary(paramsOf(b))}</span>
+      <span class="muted">{brewerLabel(b, brewers.rows)} · {paramSummary(paramsOf(b))}</span>
       {#if ratingsOf(b.id).length}
         <span class="ratings">
           {#each ratingsOf(b.id) as t (t.id)}

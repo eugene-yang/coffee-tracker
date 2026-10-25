@@ -62,7 +62,7 @@
 <style>
   .idle {
     position: fixed;
-    inset: 0;
+    inset: 0 0 calc(0px - var(--viewport-gap));
     z-index: 50;
     display: flex;
     flex-direction: column;

@@ -16,8 +16,11 @@ import {
   timerView,
   defaultParams,
   suggestDrinkers,
+  pickBrewer,
+  pickGrinder,
+  brewerLabel,
 } from './brew'
-import type { Brew, Recipe } from './types'
+import type { Brew, Brewer, Grinder, Recipe } from './types'
 
 const base = { created_at: '', updated_at: '', deleted_at: null }
 let n = 0
@@ -28,6 +31,51 @@ function brew(bag_id: string, user: string, method: string, day: number, dose = 
     recipe_id: null, recipe_version: null, started_from: 'freestyle', brewed_at: `2026-10-${String(day).padStart(2, '0')}T08:00:00Z`, note: null,
   }
 }
+
+describe('own equipment', () => {
+  const v60 = { ...base, id: 'v60', name: 'V60', method: 'pour_over', filter: null, illustration: 'v60' } as Brewer
+  const kadou = { ...base, id: 'kadou', name: 'Kadou', method: 'pour_over', filter: null, illustration: 'kadou' } as Brewer
+  const dedica = { ...base, id: 'dedica', name: 'Dedica', method: 'espresso', filter: null, illustration: 'espresso' } as Brewer
+  const owned = [v60, kadou, dedica]
+  const withKit = (b: Brew, brewer_id: string | null, grinder_id: string | null = null): Brew => ({ ...b, brewer_id, grinder_id })
+  const brews = [
+    withKit(brew('kii', 'eugene', 'pour_over', 10), 'kadou', 'c40'),
+    withKit(brew('kii', 'eugene', 'pour_over', 12), null), // saved before brews were linked to a brewer
+    withKit(brew('gesha', 'eugene', 'espresso', 13, 18), 'dedica', 'df64'),
+    withKit(brew('kii', 'ana', 'pour_over', 14), 'v60'),
+  ]
+
+  it("picks the brewer asked for, else the last one used (this person's first, of the method), else the first", () => {
+    expect(pickBrewer(owned, brews, 'eugene', { brewerId: 'v60' })?.id).toBe('v60')
+    expect(pickBrewer(owned, brews, 'eugene', { method: 'pour_over' })?.id).toBe('kadou')
+    expect(pickBrewer(owned, brews, 'eugene', {})?.id).toBe('dedica')
+    expect(pickBrewer(owned, brews, 'zoe', { method: 'pour_over' })?.id).toBe('v60') // the household's last
+    expect(pickBrewer(owned, [], 'zoe', {})?.id).toBe('v60') // nothing brewed yet: the first
+    expect(pickBrewer(owned, brews, 'zoe', { method: 'siphon' })).toBeUndefined()
+    expect(pickBrewer(owned, brews, 'eugene', { brewerId: 'gone', method: 'espresso' })?.id).toBe('dedica')
+  })
+
+  it('keeps a grinder that is still owned, else the usual one, else the first', () => {
+    const grinders = [{ ...base, id: 'c40', name: 'C40' }, { ...base, id: 'df64', name: 'DF64' }] as Grinder[]
+    expect(pickGrinder(grinders, brews, 'eugene', 'c40')?.id).toBe('c40')
+    expect(pickGrinder(grinders, brews, 'eugene', 'gone')?.id).toBe('df64')
+    expect(pickGrinder(grinders, brews, 'zoe', null)?.id).toBe('df64') // the household's last
+    expect(pickGrinder(grinders, [], 'zoe', null)?.id).toBe('c40')
+    expect(pickGrinder([], brews, 'eugene', 'c40')).toBeUndefined()
+  })
+
+  it('brews again with the same brewer, counting older unlinked brews of its method', () => {
+    expect(brewAgainSource(brews, 'kii', 'eugene', 'pour_over', 'kadou')?.brewed_at).toContain('10-12')
+    expect(brewAgainSource(brews, 'kii', 'ana', 'pour_over', 'v60')?.brewed_at).toContain('10-14')
+    expect(brewAgainSource(brews, 'kii', 'zoe', 'espresso', 'dedica')).toBeUndefined()
+    expect(brewAgainSource(brews, 'new-bag', 'eugene', 'espresso', 'dedica')?.bag_id).toBe('gesha')
+  })
+
+  it('labels a brew by its brewer, or by method when it has none', () => {
+    expect(brewerLabel(brews[0], owned)).toBe('Kadou')
+    expect(brewerLabel(brews[1], owned)).toBe('Pour-over')
+  })
+})
 
 describe('brew again', () => {
   const brews = [

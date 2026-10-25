@@ -5,7 +5,7 @@
   import { METHODS, defaultParams, latestRecipes, methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import type { Brewer, Grinder } from '../lib/domain/types'
   import { deleteRecipe, recipeEditedLabel, removeEquipment, saveBrewer, saveGrinder } from '../lib/equipment'
-  import { ILLUSTRATIONS } from '../lib/illustrations'
+  import { ILLUSTRATIONS, illustration } from '../lib/illustrations'
   import { brewers, grinders, recipes } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
   import { showToast } from '../lib/state/toast.svelte'
@@ -17,6 +17,19 @@
   function editBrewer(b: Brewer | null) {
     editingBrewer = b?.id ?? 'new'
     brewerForm = { name: b?.name ?? '', method: b?.method ?? 'pour_over', filter: b?.filter ?? '', illustration: b?.illustration ?? null }
+    if (!b) brewerForm.name = autoName()
+  }
+
+  // Most households own one of each brewer, so the name defaults to the brewer itself (the picture's
+  // brewer, else the type) and follows the picks until it's typed over
+  function autoName(): string {
+    return illustration(brewerForm.illustration)?.name ?? methodLabel(brewerForm.method)
+  }
+
+  function pickBrewer(patch: Partial<typeof brewerForm>) {
+    const auto = !brewerForm.name.trim() || brewerForm.name === autoName()
+    Object.assign(brewerForm, patch)
+    if (auto) brewerForm.name = autoName()
   }
 
   async function submitBrewer() {
@@ -131,7 +144,7 @@
     <input type="text" bind:value={brewerForm.name} placeholder="Name, e.g. Origami" aria-label="Brewer name" />
     <div class="chips">
       {#each METHODS as m (m)}
-        <button class="chip" class:on={brewerForm.method === m} onclick={() => (brewerForm.method = m)}>
+        <button class="chip" class:on={brewerForm.method === m} onclick={() => pickBrewer({ method: m })}>
           <MethodIcon method={m} size={20} />{methodLabel(m)}
         </button>
       {/each}
@@ -139,12 +152,12 @@
     <input type="text" bind:value={brewerForm.filter} placeholder="Filter (optional)" aria-label="Filter" />
     <span class="muted">Picture</span>
     <div class="art-grid">
-      <button class="art" class:on={!brewerForm.illustration} onclick={() => (brewerForm.illustration = null)}>
+      <button class="art" class:on={!brewerForm.illustration} onclick={() => pickBrewer({ illustration: null })}>
         <BrewerArt illustrationKey={null} method={brewerForm.method} size={64} />
         <span class="small">Icon</span>
       </button>
       {#each ILLUSTRATIONS as ill (ill.key)}
-        <button class="art" class:on={brewerForm.illustration === ill.key} onclick={() => (brewerForm.illustration = ill.key)}>
+        <button class="art" class:on={brewerForm.illustration === ill.key} onclick={() => pickBrewer({ illustration: ill.key, method: ill.method })}>
           <BrewerArt illustrationKey={ill.key} method={ill.method} size={64} />
           <span class="small">{ill.name}</span>
         </button>

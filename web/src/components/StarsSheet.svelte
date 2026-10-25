@@ -4,10 +4,10 @@
   import Avatar from './Avatar.svelte'
   import Stars from './Stars.svelte'
   import TempChip from './TempChip.svelte'
-  import { methodLabel } from '../lib/domain/brew'
+  import { brewerLabel } from '../lib/domain/brew'
   import type { PendingTasting } from '../lib/domain/tasting'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { users } from '../lib/state/live.svelte'
+  import { brewers, users } from '../lib/state/live.svelte'
   import { navigate } from '../lib/state/router.svelte'
   import { rateLink, ratedToast, tastingState } from '../lib/state/tastings.svelte'
 
@@ -36,7 +36,7 @@
       <span class="name">{user?.name ?? '?'}</span>
       <button class="close" aria-label="Close" onclick={onclose}>✕</button>
     </div>
-    <p class="muted">{title} · {methodLabel(p.brew.method)}</p>
+    <p class="muted">{title} · {brewerLabel(p.brew, brewers.rows)}</p>
     <div class="row">
       <TempChip band={tastingState.bandOf(p)} minutes={p.minutes} now={p.state === 'again'} oncycle={() => tastingState.cycleBand(p)} />
     </div>
@@ -48,7 +48,7 @@
 <style>
   .backdrop {
     position: fixed;
-    inset: 0;
+    inset: 0 0 calc(0px - var(--viewport-gap));
     z-index: 15;
     background: rgb(0 0 0 / 0.6);
     display: flex;

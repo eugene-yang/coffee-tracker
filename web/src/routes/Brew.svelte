@@ -10,10 +10,11 @@
 
   const draft = $derived(brewState.draft)
   const shortcuts = $derived(shortcutsFor())
-  const order = { open: 0, ready: 1, resting: 2, frozen: 3, finished: 4 }
+  // Frozen bags are brewed straight from the freezer, so they're as pickable as open ones
+  const order = { open: 0, ready: 1, frozen: 2, resting: 3, finished: 4 }
   const bags = $derived(
     inventory.views
-      .filter((v) => v.state !== 'finished' && v.state !== 'frozen' && !inventory.hidden.has(v.id))
+      .filter((v) => v.state !== 'finished' && !inventory.hidden.has(v.id))
       .sort((a, b) => order[a.state] - order[b.state] || a.title.localeCompare(b.title)),
   )
 </script>
@@ -29,7 +30,7 @@
   {#if shortcuts.length}
     <section class="stack">
       <h2>Brew again</h2>
-      {#each shortcuts as s (s.bagId + s.brew.method)}<BrewShortcut shortcut={s} />{/each}
+      {#each shortcuts as s (s.brew.id)}<BrewShortcut shortcut={s} />{/each}
     </section>
   {/if}
 
@@ -40,7 +41,7 @@
         <span class="thumb"><Photo id={v.photoIds[0]} /></span>
         <span class="text">
           <strong>{v.title}</strong>
-          <span class="muted">{v.roasterName}{v.state === 'resting' ? ' · resting' : ''}</span>
+          <span class="muted">{[v.roasterName, (v.state === 'resting' || v.state === 'frozen') && v.state].filter(Boolean).join(' · ')}</span>
         </span>
       </a>
     {:else}

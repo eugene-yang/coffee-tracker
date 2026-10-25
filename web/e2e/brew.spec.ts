@@ -30,9 +30,11 @@ test('station brew: setup, timer, who is drinking, grams left, save as recipe, b
   await panel.getByRole('button', { name: 'Brew', exact: true }).click()
   await expect(tablet).toHaveURL(/\/brew\/b-brew$/)
 
-  // Setup: method + brewer chips, params summary, steppers
-  await expect(tablet.getByRole('radio', { name: 'Pour-over' })).toHaveAttribute('aria-checked', 'true')
-  await tablet.getByRole('radio', { name: /Kadou/ }).click()
+  // Setup: only the household's own brewers (no generic method list), params summary, steppers
+  const kit = tablet.getByRole('radiogroup', { name: 'Brewer' })
+  await expect(kit.getByRole('radio', { name: /AeroPress/ })).toBeVisible()
+  await expect(tablet.getByRole('radio', { name: 'Pour-over' })).toHaveCount(0)
+  await kit.getByRole('radio', { name: /Kadou/ }).click()
   await tablet.getByRole('button', { name: /15 g · 250 g · 94°/ }).click()
   await tablet.getByRole('button', { name: 'Dose plus' }).click()
   await expect(tablet.getByRole('button', { name: /15\.5 g · 250 g/ })).toBeVisible()
@@ -50,7 +52,7 @@ test('station brew: setup, timer, who is drinking, grams left, save as recipe, b
   // Saved → save as recipe (name prefilled)
   await expect(tablet.getByRole('heading', { name: 'Saved' })).toBeVisible()
   await tablet.getByRole('button', { name: 'Save as recipe' }).click()
-  await expect(tablet.getByPlaceholder('e.g. Daily V60')).toHaveValue('Brew Test Kii · Pour-over')
+  await expect(tablet.getByPlaceholder('e.g. Daily V60')).toHaveValue('Brew Test Kii · Kadou')
   await tablet.getByRole('button', { name: 'Save recipe' }).click()
   await expect(tablet.getByRole('status')).toContainText('Recipe saved')
   await tablet.getByRole('button', { name: 'Back to inventory' }).click()
@@ -58,7 +60,7 @@ test('station brew: setup, timer, who is drinking, grams left, save as recipe, b
   // Inventory: grams left went down by the dose; Brew again shortcut + panel button
   await tablet.getByRole('button', { name: /Test Roasters.*Brew Test Kii/ }).click()
   await expect(panel).toContainText('235 g left')
-  await expect(panel.getByRole('button', { name: /Brew again/ })).toContainText('Pour-over · 15.5 g · 250 g · 94°')
+  await expect(panel.getByRole('button', { name: /Brew again/ })).toContainText('Kadou · 15.5 g · 250 g · 94°')
   await tablet.getByRole('button', { name: 'Brew again: Brew Test Kii' }).click()
   await expect(tablet.getByRole('button', { name: '↻ Brew again' })).toBeVisible()
   await expect(tablet.getByRole('button', { name: /15\.5 g · 250 g · 94°/ })).toBeVisible()
@@ -72,7 +74,7 @@ test('station brew: setup, timer, who is drinking, grams left, save as recipe, b
 
   // The recipe exists in Settings → Equipment with the brew's parameters
   await tablet.goto('/settings/equipment')
-  await expect(tablet.getByRole('button', { name: /Brew Test Kii · Pour-over/ })).toContainText('15.5 g · 250 g · 94°')
+  await expect(tablet.getByRole('button', { name: /Brew Test Kii · Kadou/ })).toContainText('15.5 g · 250 g · 94°')
 
   // Phone (Dana): both brews in Recent; no Brew again shortcut since Dana brewed nothing
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 } })

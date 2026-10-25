@@ -33,6 +33,16 @@ describe('pendingTastings', () => {
     expect(pendingTastings([brew('a', 3)], tasters, [], NOW, DEFAULT_TEMP_BANDS, 'bo').map((c) => c.userId)).toEqual(['bo'])
   })
 
+  it("treats a brew nobody was marked drinking as the brewer's cup, and an unattributed one as the viewer's", () => {
+    const mine = { ...brew('a', 3), brewer_user_id: 'ana' }
+    const orphan = { ...brew('b', 5), brewer_user_id: null }
+    expect(pendingTastings([mine, orphan], [], [], NOW, DEFAULT_TEMP_BANDS).map((c) => c.key)).toEqual(['a:ana'])
+    expect(pendingTastings([mine, orphan], [], [], NOW, DEFAULT_TEMP_BANDS, 'bo').map((c) => c.key)).toEqual(['b:bo'])
+    // Someone marked as drinking: only they get the card
+    const tasters = [{ brew_id: 'a', user_id: 'bo' }]
+    expect(pendingTastings([mine], tasters, [], NOW, DEFAULT_TEMP_BANDS).map((c) => c.key)).toEqual(['a:bo'])
+  })
+
   it('keeps a just-rated cup editable for 5 minutes', () => {
     const [c] = cards([brew('a', 8)], [tasting('a', 'ana', 4, 'hot')])
     expect(c.state).toBe('editing')

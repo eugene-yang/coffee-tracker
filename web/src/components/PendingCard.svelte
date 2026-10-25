@@ -3,10 +3,10 @@
   import MethodIcon from './MethodIcon.svelte'
   import Stars from './Stars.svelte'
   import TempChip from './TempChip.svelte'
-  import { methodLabel } from '../lib/domain/brew'
+  import { brewerLabel } from '../lib/domain/brew'
   import { TEMP_BAND_LABELS, overallLabel, type PendingTasting } from '../lib/domain/tasting'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { users } from '../lib/state/live.svelte'
+  import { brewers, users } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
   import { rateLink, tastingState } from '../lib/state/tastings.svelte'
 
@@ -21,7 +21,7 @@
     <MethodIcon method={p.brew.method} size={22} />
     <span class="title">
       <strong>{title}</strong>
-      <span class="muted">{methodLabel(p.brew.method)}{brewer ? ` · brewed by ${brewer}` : ''}</span>
+      <span class="muted">{brewerLabel(p.brew, brewers.rows)}{brewer ? ` · brewed by ${brewer}` : ''}</span>
     </span>
     {#if p.state !== 'waiting'}
       <TempChip band={tastingState.bandOf(p)} minutes={p.minutes} now={p.state === 'again'} oncycle={() => tastingState.cycleBand(p)} />

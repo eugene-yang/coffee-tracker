@@ -11,7 +11,7 @@
   const view = $derived(inventory.byId.get(shortcut.bagId))
 
   function go() {
-    brewState.prepare(shortcut.bagId, device.userId, { method: shortcut.brew.method })
+    brewState.prepare(shortcut.bagId, device.userId, { brewerId: shortcut.brew.brewer_id, method: shortcut.brew.method })
     navigate(`/brew/${shortcut.bagId}`)
   }
 </script>

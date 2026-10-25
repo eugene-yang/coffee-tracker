@@ -2,9 +2,10 @@
 // elapsed time is always computed from the start timestamp, never counted.
 import { mutate, nowIso, remove } from '../db/local'
 import { uuidv7 } from '../db/uuid'
-import { brewAgainSource, defaultParams, paramsOf, suggestDrinkers } from '../domain/brew'
+import { brewAgainSource, defaultParams, paramsOf, pickBrewer, pickGrinder, suggestDrinkers } from '../domain/brew'
 import type { BrewParams, Recipe, StartedFrom } from '../domain/types'
-import { brews, brewTasters } from './live.svelte'
+import { device } from './device.svelte'
+import { brewers, brews, brewTasters, grinders } from './live.svelte'
 
 export interface BrewDraft {
   id: string
@@ -44,9 +45,26 @@ class BrewState {
     }
   }
 
-  /** Set up a brew of this bag: copy the last brew (Brew again) when there is one, else method defaults. */
-  prepare(bagId: string, userId: string | null, opts: { method?: string; recipe?: Recipe; freestyle?: boolean } = {}): BrewDraft {
-    const source = opts.recipe || opts.freestyle ? undefined : brewAgainSource(brews.rows, bagId, userId, opts.method)
+  /**
+   * Set up a brew of this bag with the household's own equipment: the brewer asked for, else the one
+   * this bag was last brewed with, else this person's usual one. Copies the last brew with that brewer
+   * (Brew again) when there is one, else method defaults.
+   */
+  prepare(
+    bagId: string,
+    userId: string | null,
+    opts: { brewerId?: string | null; method?: string; recipe?: Recipe; freestyle?: boolean } = {},
+  ): BrewDraft {
+    const last = opts.brewerId || opts.recipe ? undefined : brewAgainSource(brews.rows, bagId, userId, opts.method)
+    const want = opts.brewerId
+      ? { brewerId: opts.brewerId }
+      : opts.recipe
+        ? { brewerId: opts.recipe.brewer_id, method: opts.recipe.method }
+        : { brewerId: last?.brewer_id, method: last?.method ?? opts.method }
+    const brewer = pickBrewer(brewers.rows, brews.rows, userId, want) ?? pickBrewer(brewers.rows, brews.rows, userId, {})
+    const method = brewer?.method ?? want.method ?? 'pour_over'
+
+    const source = opts.recipe || opts.freestyle ? undefined : brewAgainSource(brews.rows, bagId, userId, method, brewer?.id)
     let params: BrewParams
     let startedFrom: StartedFrom
     if (opts.recipe) {
@@ -56,9 +74,11 @@ class BrewState {
       params = paramsOf(source)
       startedFrom = 'brew_again'
     } else {
-      params = defaultParams(opts.method ?? 'pour_over')
+      params = defaultParams(method)
       startedFrom = 'freestyle'
     }
+    const grinder = pickGrinder(grinders.rows, brews.rows, userId, params.grinder_id)
+    params = { ...params, method, brewer_id: brewer?.id ?? null, grinder_id: grinder?.id ?? null }
     this.draft = {
       id: uuidv7(),
       bagId,
@@ -113,6 +133,8 @@ class BrewState {
   stop() {
     const d = this.draft
     if (!d) return
+    // A brew set up before this device had a person (e.g. right after install) belongs to whoever finishes it
+    d.brewerUserId ??= device.userId
     d.stoppedAt = d.startedAt ? Date.now() : null
     d.phase = 'stopped'
     const time = Math.round(this.elapsedS())
@@ -135,7 +157,7 @@ class BrewState {
     const p = d.params
     await mutate('brew', d.id, {
       bag_id: d.bagId,
-      brewer_user_id: d.brewerUserId,
+      brewer_user_id: d.brewerUserId ?? device.userId,
       method: p.method,
       brewer_id: p.brewer_id,
       grinder_id: p.grinder_id,

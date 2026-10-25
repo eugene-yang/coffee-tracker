@@ -37,7 +37,7 @@
   {#if shortcuts.length}
     <section class="stack">
       <h2>Brew again</h2>
-      {#each shortcuts as s (s.bagId + s.brew.method)}<BrewShortcut shortcut={s} />{/each}
+      {#each shortcuts as s (s.brew.id)}<BrewShortcut shortcut={s} />{/each}
     </section>
   {/if}
 
