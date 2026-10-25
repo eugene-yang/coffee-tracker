@@ -11,12 +11,13 @@
 
   async function onchange(e: Event) {
     const input = e.currentTarget as HTMLInputElement
-    const file = input.files?.[0]
+    const files = [...(input.files ?? [])]
     input.value = ''
-    if (!file || !view) return
+    if (!files.length || !view) return
     busy = true
     try {
-      await addPhoto(bagId, file, view.photoIds.length)
+      const room = MAX_PHOTOS_PER_BAG - view.photoIds.length
+      for (const [i, file] of files.slice(0, room).entries()) await addPhoto(bagId, file, view.photoIds.length + i)
     } finally {
       busy = false
     }
@@ -31,10 +32,16 @@
     {/each}
   </div>
   {#if (view?.photoIds.length ?? 0) < MAX_PHOTOS_PER_BAG}
-    <label class="add" aria-busy={busy}>
-      <input type="file" accept="image/*" capture="environment" {onchange} aria-label="Add another photo" />
-      {busy ? 'Saving…' : 'Add another'}
-    </label>
+    <div class="adds" aria-busy={busy}>
+      <label class="add">
+        <input type="file" accept="image/*" capture="environment" {onchange} aria-label="Add another photo" />
+        {busy ? 'Saving…' : 'Add another'}
+      </label>
+      <label class="add">
+        <input type="file" accept="image/*" multiple {onchange} aria-label="Add from photos" />
+        From photos
+      </label>
+    </div>
   {/if}
   <button class="primary done" onclick={() => navigate(`/bag/${bagId}`)}>Done</button>
 </div>
@@ -49,6 +56,11 @@
     aspect-ratio: 1;
     border-radius: 10px;
     overflow: hidden;
+  }
+  .adds {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 8px;
   }
   .add {
     display: flex;

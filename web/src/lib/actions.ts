@@ -9,11 +9,16 @@ import { resizeImage } from './photo'
 
 export const MAX_PHOTOS_PER_BAG = 3
 
-/** Capture: the first photo creates the bag immediately as "needs review". */
-export async function createBagWithPhoto(file: Blob): Promise<string> {
+/**
+ * Capture: the first photo creates the bag immediately as "needs review"; more photos of the same
+ * bag (picked together from the library) are added up to MAX_PHOTOS_PER_BAG. A bag that goes
+ * straight into the freezer gets its "frozen" event now, so freezer time doesn't age it.
+ */
+export async function createBagWithPhotos(files: Blob[], opts: { frozen: boolean; userId: string | null }): Promise<string> {
   const bagId = uuidv7()
   await mutate('bag', bagId, { review_state: 'needs_review' })
-  await addPhoto(bagId, file, 0)
+  for (const [i, file] of files.slice(0, MAX_PHOTOS_PER_BAG).entries()) await addPhoto(bagId, file, i)
+  if (opts.frozen) await addBagEvent(bagId, 'frozen', opts.userId)
   return bagId
 }
 

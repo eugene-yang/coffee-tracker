@@ -19,7 +19,7 @@
     <h1>{title}</h1>
     <SyncDot />
   </header>
-  <main>{@render children()}</main>
+  <main data-scroll>{@render children()}</main>
   <nav aria-label="Sections">
     {#each tabs as tab (tab.key)}
       <a href={href(tab.href)} class:active={section === tab.key} aria-current={section === tab.key ? 'page' : undefined}
@@ -30,11 +30,17 @@
 </div>
 
 <style>
+  /* One fixed frame; only <main> scrolls. When the whole page scrolled, iOS dragged the bottom bars
+     along on short pages (rubber-band / collapsing toolbar) */
   .phone {
-    min-height: 100dvh;
-    padding: env(safe-area-inset-top) 0 calc(64px + env(safe-area-inset-bottom));
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top);
   }
   header {
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -44,11 +50,14 @@
     font-size: 28px;
   }
   main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0 16px 16px;
   }
   nav {
-    position: fixed;
-    inset: auto 0 0 0;
+    flex: none;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     padding-bottom: env(safe-area-inset-bottom);

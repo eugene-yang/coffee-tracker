@@ -33,6 +33,9 @@ test('capture a bag, review the label, browse and search on phone and station', 
   await page.getByRole('button', { name: 'Looks right' }).click()
   await expect(page.getByRole('heading', { name: 'Kii AA Top Lot' })).toBeVisible()
   await expect(page.getByText('~16 cups · 250 g left')).toBeVisible()
+  // New bags go straight into the freezer by default (Settings → Beans); take this one out
+  await page.getByRole('button', { name: 'Thaw' }).click()
+  await expect(page.getByRole('status')).toContainText('Out of the freezer')
 
   // Browse and search
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()
@@ -89,4 +92,43 @@ test('capture a bag, review the label, browse and search on phone and station', 
 
   await phone.close()
   await station.close()
+})
+
+test('phone: add a bag from the photo library onto the shelf; the page frame never scrolls', async ({ browser }) => {
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
+  const page = await phone.newPage()
+  await page.goto('/settings')
+  await page.getByRole('radiogroup', { name: 'New bags go to' }).getByRole('radio', { name: 'Shelf' }).click()
+  await expect(page.getByRole('radio', { name: 'Shelf' })).toHaveAttribute('aria-checked', 'true')
+
+  await page.getByRole('link', { name: 'Inventory', exact: true }).click()
+  await page.getByLabel('Choose photos of a new bag').setInputFiles([BAG_PHOTO, BAG_PHOTO])
+  await expect(page).toHaveURL(/\/capture\//)
+  await expect(page.locator('.shot')).toHaveCount(2)
+  await page.getByLabel('Add from photos').setInputFiles([BAG_PHOTO, BAG_PHOTO]) // only one more fits
+  await expect(page.locator('.shot')).toHaveCount(3)
+  await expect(page.getByLabel('Add from photos')).toHaveCount(0)
+  const bagId = page.url().split('/').pop()
+  await page.getByRole('button', { name: 'Done' }).click()
+  // On the shelf: no "frozen" event was recorded for it
+  const events = await page.evaluate(
+    (id) =>
+      new Promise<string[]>((resolve) => {
+        const open = indexedDB.open('coffee')
+        open.onsuccess = () => {
+          const all = open.result.transaction('bag_event').objectStore('bag_event').getAll()
+          all.onsuccess = () => resolve(all.result.filter((e) => e.bag_id === id).map((e) => e.kind))
+        }
+      }),
+    bagId,
+  )
+  expect(events).toEqual([])
+
+  // Only the content area scrolls, so iOS can't drag the bottom bars around on short pages
+  for (const path of ['/', '/inventory', '/brew', '/settings']) { // settings is taller than the screen
+    await page.goto(path)
+    await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  }
+  await phone.close()
 })
