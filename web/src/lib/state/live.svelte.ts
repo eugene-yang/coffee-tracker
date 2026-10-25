@@ -20,8 +20,15 @@ import type {
 
 export type { User, Setting } from '../domain/types'
 
+/**
+ * Rows deleted with an undo toast still showing ("table:id"). Deletes sync as tombstones and can't be
+ * reverted, so they only happen once the toast closes; until then these rows are hidden everywhere.
+ */
+export const pendingDeletes = $state({ keys: new Set<string>() })
+
 export class LiveTable<T extends Row = Row> {
-  rows = $state<T[]>([])
+  private all = $state<T[]>([])
+  rows = $derived(this.all.filter((r) => !pendingDeletes.keys.has(`${this.table}:${r.id}`)))
   loaded = $state(false)
   byId = $derived(new Map(this.rows.map((r) => [r.id, r])))
 
@@ -33,7 +40,7 @@ export class LiveTable<T extends Row = Row> {
   }
 
   async load(): Promise<void> {
-    this.rows = (await listRows(this.table)) as T[]
+    this.all = (await listRows(this.table)) as T[]
     this.loaded = true
   }
 
@@ -57,6 +64,16 @@ export const recipes = new LiveTable<Recipe>('recipe')
 export const brews = new LiveTable<Brew>('brew')
 export const brewTasters = new LiveTable<BrewTaster>('brew_taster')
 export const tastings = new LiveTable<Tasting>('tasting')
+
+/** Equipment that isn't hidden (retired): what new brews and recipes are offered. Old brews keep their names. */
+export const kit = {
+  get brewers(): Brewer[] {
+    return brewers.rows.filter((b) => !b.hidden_at)
+  },
+  get grinders(): Grinder[] {
+    return grinders.rows.filter((g) => !g.hidden_at)
+  },
+}
 
 export function settingValue<T>(id: string, fallback: T): T {
   return (settings.get(id)?.value as T | undefined) ?? fallback

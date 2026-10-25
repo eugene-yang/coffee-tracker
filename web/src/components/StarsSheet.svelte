@@ -60,7 +60,7 @@
 <style>
   .backdrop {
     position: fixed;
-    inset: 0 0 calc(0px - var(--viewport-gap));
+    inset: 0;
     z-index: 15;
     background: rgb(0 0 0 / 0.6);
     display: flex;

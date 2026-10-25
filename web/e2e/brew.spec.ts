@@ -129,6 +129,20 @@ test('phone: recipe steps drive the timer cues, and the timer survives a reload'
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   await page.getByRole('button', { name: 'Save brew' }).click()
   await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible()
+
+  // Recipes belong to one of the household's own brewers: an older one saved with only a method asks for one
+  await page.goto('/settings/equipment')
+  await page.getByRole('button', { name: /Quick steps/ }).click()
+  await expect(page.getByText(/isn't tied to a brewer yet/)).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Pour-over' })).toHaveCount(0) // no generic method list
+  const save = page.getByRole('button', { name: 'Save new version' })
+  await expect(save).toBeDisabled()
+  await page.getByRole('radiogroup', { name: 'Brewer' }).getByRole('radio', { name: /Kadou/ }).click()
+  await save.click()
+  await expect(page.getByRole('button', { name: /Quick steps/ })).toContainText('Kadou · 15 g · 250 g')
+  // A new recipe starts on the brewer this person used last
+  await page.getByRole('button', { name: '+ New recipe' }).click()
+  await expect(page.getByRole('radiogroup', { name: 'Brewer' }).locator('[aria-checked="true"]')).toHaveCount(1)
   await phone.close()
 })
 

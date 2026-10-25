@@ -126,6 +126,8 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - Keep every recipe; editing creates a new version so old brews still point at what was actually used
   - Versions stay in the data; the UI only shows "v3 · edited Oct 2" (no version browser)
   - Recipes are mostly created via **"Save as recipe"** after a brew; managed under Settings → Equipment & recipes
+  - Brewers and grinders are **hidden** (retired), never deleted: off the brew screen, still named on old brews, back with Unhide
+  - Every recipe names one of the household's own brewers (its method comes from the brewer) and optionally a grinder; new ones start on the usual brewer, older method-only recipes ask for a brewer when edited
 - **Brews start from a bag** (no separate new-brew wizard): bag → **Brew again** (last brew for this bag × method, incl. grind setting) as the primary action; "Recipe…" / freestyle as secondary
   - Station also shows ↻ Brew again shortcuts for the current brewer above the inventory grid
 - Live brew screen has a pre-start state: the household's own brewers (and grinders, when more than one) preselected — never the generic method list — recipe chip, params summary `15 g · 250 g · 22 · 94°` — tap one for a stepper
@@ -194,6 +196,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
 - Brew: `brewer_id` (user), `started_from`; `BrewTaster` (brew × user) is no longer written — anyone can rate any brew
 - Tasting (many per brew): `schema_version`, `taster_id`, `rated_at`, `minutes_after_brew`, `temp_band` + `temp_band_suggested` (hot/warm/cool), `overall` (1–5), optional aroma / acidity / sweetness / body / aftertaste / balance / cleanness (1–5), tags (with source), note (the compass columns stay for old ratings; no longer shown)
 - Storage as events (opened, frozen, thawed, finished, gram adjustments), not booleans or counters
+- Deleting (phone only) a bag, brew or rating asks first and names what goes with it (a bag's brews, ratings and photos; a brew's ratings, its dose back to the bag), then offers Undo for 5 s; a delete confirmed just before the app closes is carried out on the next start
 - `updated_by` on shared entities (who edited a bag)
 - Settings (synced): temperature band thresholds, rest windows per method
 - Server keeps a monotonic change sequence for the pull cursor

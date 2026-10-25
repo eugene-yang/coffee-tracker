@@ -92,6 +92,7 @@ export interface Alias extends Row {
 export interface Grinder extends Row {
   name: string | null
   setting_hint: string | null
+  hidden_at: string | null // retired: kept for old brews, not offered for new ones
 }
 
 export interface Brewer extends Row {
@@ -99,6 +100,7 @@ export interface Brewer extends Row {
   method: string | null
   filter: string | null
   illustration: string | null
+  hidden_at: string | null // retired: kept for old brews, not offered for new ones
 }
 
 export interface RecipeStep {

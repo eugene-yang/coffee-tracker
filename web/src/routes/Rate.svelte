@@ -5,6 +5,8 @@
   // Below: every rating of this cup, by anyone, in order.
   import { onDestroy } from 'svelte'
   import Avatar from '../components/Avatar.svelte'
+  import ConfirmDialog from '../components/ConfirmDialog.svelte'
+  import { deleteWithUndo } from '../lib/state/deletes.svelte'
   import Scale from '../components/Scale.svelte'
   import Stars from '../components/Stars.svelte'
   import TempChip from '../components/TempChip.svelte'
@@ -79,6 +81,15 @@
     if (id && t && (t.note ?? '') !== note) updateTasting(id, { note: note.trim() ? note : null })
   }
   onDestroy(saveNote)
+
+  // Deleting a rating (phone): nothing else goes with it
+  let confirming = $state(false)
+  function del() {
+    if (!tasting) return
+    deleteWithUndo('Rating deleted', [{ table: 'tasting', id: tasting.id }])
+    confirming = false
+    back()
+  }
 
   function back() {
     saveNote()
@@ -202,6 +213,16 @@
     </section>
 
     <button class="primary done" onclick={back}>Done</button>
+    {#if tasting && layout === 'phone'}
+      <button class="danger-link" onclick={() => (confirming = true)}>Delete this rating</button>
+    {/if}
+    {#if confirming && tasting}
+      <ConfirmDialog
+        title="Delete {users.get(tasting.taster_id)?.name ?? 'this'}’s {'★'.repeat(tasting.overall ?? 0)} rating from {dateTime(tasting.rated_at)}?"
+        onconfirm={del}
+        oncancel={() => (confirming = false)}
+      />
+    {/if}
   </div>
 {/if}
 
@@ -332,6 +353,12 @@
   .done {
     min-height: 56px;
     font-weight: 700;
+  }
+  .danger-link {
+    align-self: center;
+    border: none;
+    background: transparent;
+    color: var(--danger);
   }
   .station .done {
     min-height: 72px;

@@ -34,11 +34,13 @@
 
 <style>
   /* One fixed frame; only <main> scrolls. When the whole page scrolled, iOS dragged the bottom bars
-     along on short pages (rubber-band / collapsing toolbar). In a Home Screen app the frame reaches
-     past the layout viewport to the real bottom edge (--viewport-gap) */
+     along on short pages (rubber-band / collapsing toolbar). The frame stays inside the layout
+     viewport: in an iOS Home Screen app the strip below it is painted by the page background (see
+     lib/viewport.ts), so it has its own background here */
   .phone {
     position: fixed;
-    inset: 0 0 calc(0px - var(--viewport-gap));
+    inset: 0;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
     padding-top: env(safe-area-inset-top);
@@ -64,7 +66,7 @@
     flex: none;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--bottom-inset);
     background: var(--surface);
     border-top: 1px solid var(--border);
   }

@@ -1,7 +1,9 @@
-// iOS Home Screen apps can lay out against a viewport shorter than the screen, leaving a strip under
-// anything pinned to the bottom (WebKit bug 292603). The app fills the whole screen there, so the
-// strip's height is the screen height minus the layout viewport; bottom-pinned elements use it as
-// --viewport-gap to reach the real bottom edge. Safari tabs and Android are left alone (gap 0).
+// iOS Home Screen apps (iOS 26) can lay out against a viewport shorter than the screen, leaving a
+// strip at the bottom (WebKit bug 292603). iOS paints only the page background there and clips fixed
+// elements at the viewport's edge, so nothing is moved into the strip: its height is measured as the
+// screen height minus the layout viewport (--viewport-gap, used to trim the bars' safe-area padding),
+// and the "ios-gap" class lets CSS paint the page background in the tab bar's color. Any iPhone model
+// works; without the bug, in Safari tabs and on Android the gap is 0 and nothing changes.
 
 function measure(): number {
   const nav = navigator as Navigator & { standalone?: boolean }
@@ -17,7 +19,11 @@ function measure(): number {
 }
 
 export function trackViewportGap(): void {
-  const apply = () => document.documentElement.style.setProperty('--viewport-gap', `${measure()}px`)
+  const apply = () => {
+    const gap = measure()
+    document.documentElement.style.setProperty('--viewport-gap', `${gap}px`)
+    document.documentElement.classList.toggle('ios-gap', gap > 0)
+  }
   apply()
   window.addEventListener('resize', apply)
   window.addEventListener('orientationchange', () => setTimeout(apply, 300))

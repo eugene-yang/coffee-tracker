@@ -36,7 +36,7 @@
   let sortOpen = $state(false)
   let selectedId = $state<string | null>(null)
 
-  const live = $derived(inventory.views.filter((v) => !inventory.hidden.has(v.id)))
+  const live = $derived(inventory.views)
   const searching = $derived(inventory.hits !== null)
   const filtering = $derived(isFilterActive(inventory.filter))
   const visible = $derived(
@@ -292,7 +292,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(57px + env(safe-area-inset-bottom) - var(--viewport-gap));
+    bottom: calc(57px + var(--bottom-inset));
     display: flex;
     flex-direction: column;
     gap: 8px;

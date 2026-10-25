@@ -51,7 +51,7 @@
 <style>
   .backdrop {
     position: fixed;
-    inset: 0 0 calc(0px - var(--viewport-gap));
+    inset: 0;
     background: rgb(0 0 0 / 0.5);
     z-index: 30;
   }
@@ -59,14 +59,14 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(0px - var(--viewport-gap));
+    bottom: 0;
     z-index: 31;
     max-height: 80dvh;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+    padding: 20px 16px calc(16px + var(--bottom-inset));
     background: var(--surface);
     border-radius: 16px 16px 0 0;
   }

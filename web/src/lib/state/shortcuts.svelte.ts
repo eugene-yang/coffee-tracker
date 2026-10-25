@@ -10,7 +10,7 @@ export function shortcutsFor(max = 3) {
     device.userId,
     (bagId) => {
       const v = inventory.byId.get(bagId)
-      return !!v && v.state !== 'finished' && !inventory.hidden.has(bagId)
+      return !!v && v.state !== 'finished'
     },
     max,
   )

@@ -2,17 +2,30 @@
   // A bag's brews, newest first, each with the grinder and settings used and its ratings under it.
   // Phone: whose ratings follow the Mine · Everyone filter; station: everyone's, last few brews only.
   import Avatar from './Avatar.svelte'
+  import ConfirmDialog from './ConfirmDialog.svelte'
   import WhoFilter from './WhoFilter.svelte'
   import { brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import TempIcon from './TempIcon.svelte'
+  import { cascadeSentence } from '../lib/domain/deletes'
   import { overallLabel } from '../lib/domain/tasting'
+  import type { Brew } from '../lib/domain/types'
+  import { brewDeletion, deleteWithUndo } from '../lib/state/deletes.svelte'
   import { device } from '../lib/state/device.svelte'
   import { brewers, brews, grinders, tastings, users } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
   import { dateTime } from '../lib/state/shortcuts.svelte'
   import { rateLink, ratingFilter, ratingMatches } from '../lib/state/tastings.svelte'
 
+  // Phone: whose ratings follow the filter, and brews can be deleted; station: neither (taps only, no deleting)
   let { bagId, limit, filter = true }: { bagId: string; limit?: number; filter?: boolean } = $props()
+
+  let deleting = $state<Brew | null>(null)
+  const cascade = $derived(deleting ? brewDeletion(deleting.id) : null)
+  function del() {
+    if (!deleting || !cascade) return
+    deleteWithUndo('Brew deleted', cascade.rows)
+    deleting = null
+  }
 
   const all = $derived(brews.rows.filter((b) => b.bag_id === bagId).sort((a, b) => b.brewed_at.localeCompare(a.brewed_at)))
   const shown = $derived(limit ? all.slice(0, limit) : all)
@@ -36,6 +49,7 @@
           <span class="muted">{[paramSummary(paramsOf(b)), grinders.get(b.grinder_id)?.name, brewer?.name && `by ${brewer.name}`].filter(Boolean).join(' · ')}</span>
         </span>
         {#if me}<a class="rate" href={href(rateLink(b.id, me.id))}>Rate</a>{/if}
+        {#if filter}<button class="delete" aria-label="Delete brew from {dateTime(b.brewed_at)}" onclick={() => (deleting = b)}>Delete</button>{/if}
       </div>
       {#each ratingsOf(b.id) as t (t.id)}
         <a class="rating" href={href(rateLink(b.id, t.taster_id, t.id))}>
@@ -49,6 +63,14 @@
   {:else}
     <p class="muted">Not brewed yet.</p>
   {/each}
+  {#if deleting && cascade}
+    <ConfirmDialog
+      title="Delete the brew from {dateTime(deleting.brewed_at)}?"
+      message={[cascadeSentence(cascade, 'brew'), cascade.grams ? `Its ${cascade.grams} g goes back to the bag.` : ''].filter(Boolean).join(' ')}
+      onconfirm={del}
+      oncancel={() => (deleting = null)}
+    />
+  {/if}
   {#if limit && all.length > limit}<p class="muted">+ {all.length - limit} earlier — see the bag on a phone.</p>{/if}
 </section>
 
@@ -92,6 +114,14 @@
   }
   .lit {
     color: var(--accent);
+  }
+  .delete {
+    min-height: 40px;
+    padding: 0 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 14px;
   }
   p {
     margin: 0;

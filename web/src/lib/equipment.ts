@@ -24,8 +24,9 @@ export async function saveBrewer(
   return bid
 }
 
-export function removeEquipment(table: 'grinder' | 'brewer', id: string): Promise<unknown> {
-  return remove(table, id)
+/** Equipment is hidden (retired), never deleted: old brews keep showing what they were made with. */
+export function setEquipmentHidden(table: 'grinder' | 'brewer', id: string, hidden: boolean): Promise<unknown> {
+  return mutate(table, id, { hidden_at: hidden ? nowIso() : null })
 }
 
 export interface RecipeInput extends BrewParams {

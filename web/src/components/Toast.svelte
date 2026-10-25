@@ -20,7 +20,7 @@
   .toast {
     position: fixed;
     left: 50%;
-    bottom: calc(80px + env(safe-area-inset-bottom) - var(--viewport-gap));
+    bottom: calc(80px + var(--bottom-inset));
     transform: translateX(-50%);
     width: max-content; /* centered with left: 50%, it would otherwise wrap at half the screen */
     z-index: 20;

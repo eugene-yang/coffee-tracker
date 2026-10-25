@@ -208,7 +208,7 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 
 **Timer**: state is start timestamps + laps persisted in IndexedDB → survives lock, reload, app switch. Wake Lock while `/brew/:id` is open, re-acquired on `visibilitychange`. Audio cue via a pre-unlocked `AudioContext` (Start tap) + visual flash.
 
-**Current user**: per-device default stored locally; station shows a sticky brewer avatar in the header (remembers last). Drinkers at Done are prefilled from this brewer's last brew.
+**Current user**: per-device default stored locally; station shows a sticky brewer avatar in the header (remembers last). There is no drinkers step: anyone can rate any recent cup.
 
 **Station behaviors**: idle after 2 min → dim clock + brewer avatar + pending count; first tap only wakes. Wake Lock during a brew and 10 min after Done. Taps only, double taps within 300 ms ignored, undo toasts (5 s) instead of confirms. Sync dot in the header, never a blocking modal (except storage full).
 
@@ -303,3 +303,41 @@ Each milestone ends with something used on real devices. Sizes are relative (S/M
 - Illustration house style: review 2–3 directions in the gallery before generating the full set
 
 Decided: Svelte 5; Docker Compose for deploy; method icons drawn in-house (M2); brewer pictures are agent-generated SVG illustrations at dev time (M2), runtime photo restyling deferred; UX review folded in (`docs/UX_REVIEW.md`), with these deviations from it: all detail scales stay 1–5 (words at 1 / 3 / 5) and ship in M3; no `temp_band_touched`; brewer images kept.
+
+## 12. Later: hosted frontend, optional home server (design note, not scheduled)
+
+**Goal**: anyone can use the app on their phone from the GitHub Pages build. The home server is optional. When used, it adds backup, a database shared between a household's devices, and a relay to a local LLM. Without it, label reading can use an external LLM API with the user's own key.
+
+**Why it fits**: the app is already local-first (IndexedDB + outbox, section 5), and the preview build already runs from Pages with sync turned off. Several kinds of data are already conflict-friendly:
+- bag status and amounts are events
+- recipe versions are immutable
+- every rating is its own tasting row
+
+**Work, in order**
+
+1. **Server per device.** Settings gets a backend URL, or pairs by scanning a QR code shown by the server. The sync client and photo uploads use that base URL instead of the page's origin. No URL means local-only, as the preview is today.
+2. **Pairing token and CORS.** The server stops trusting the LAN and requires a household token on every `/api/*` call (`Authorization: Bearer …`).
+   - **Getting a token:** a device gets one by pairing (code or QR from the server's Settings). Tokens can be revoked.
+   - **CORS:** allow-list the app's exact origin, never `*`.
+   - **Private network access:** answer Chrome's Private/Local Network Access preflight (`Access-Control-Allow-Private-Network: true`). A public origin calling a LAN address may also trigger a browser permission prompt. Test Safari and Chrome on real devices first, because this is the riskiest unknown.
+3. **Reaching the server.**
+   - **HTTPS:** the page is HTTPS, so the backend must be HTTPS too. Caddy with DNS-01 already provides a real certificate.
+   - **Away from home:** outside the LAN, use Tailscale or a Cloudflare Tunnel, or simply sync when back home (already works).
+4. **Export / Import.** A backup file of all rows plus photos for devices without a server. Import into a fresh device reuses the restore path (epoch / `restore` ops, M4).
+5. **Joining or switching servers.** A device that already has local data and connects to a backend must merge into it: push everything, as the restore path does. Switching from one backend to another asks "start fresh or merge".
+6. **LLM modes.** Choose per household in Settings:
+   - **Relay:** the server forwards to the local Ollama, the current extraction worker.
+   - **Direct:** the phone calls an external vision API with the user's key, right after capture. Its output is written to the same `extraction` row so review works unchanged.
+   - **Key storage:** the key is stored on the device only and never synced. Anything on the same origin can read it, which is a reason for the next item.
+7. **Own origin.** Serve the app from a dedicated subdomain (e.g. `coffee.eugene.zone`). Browser storage and the service worker are per origin, so nothing else on the domain can read the key or the data.
+
+**Sync rules to add (section 5)**
+
+More devices don't change the model much; long offline periods do. Today's rule, "same field → last to sync wins", orders writes by arrival at the server, not by when they happened.
+- **Last write wins by edit time.** Use a hybrid logical clock per op (wall time + counter + device id) so the latest edit wins, wherever it was made and whenever it synced.
+- **Delete wins.** A tombstone beats any edit made offline elsewhere. Undo stays a local, pre-sync action (as now).
+- **Clashes on reviewed bag details.** When two devices change the same field of a reviewed coffee to different values within one sync gap, keep the later one and flag the bag for a quick review, rather than picking one silently.
+- **Settings merge per key.** Each setting is its own row already. Never write a whole settings object.
+- **Append-only stays append-only.** Brews, tastings, bag events and recipe versions never need merging.
+
+**Effort**: small for items 1, 2 (server side) and 4; medium for 6 (moving extraction onto the phone) and for the clock and conflict rules. Nothing here fights the current architecture. The open risk is browser support for public-origin → LAN requests (item 2), so prototype that first.
