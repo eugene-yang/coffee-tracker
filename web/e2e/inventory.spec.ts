@@ -13,6 +13,11 @@ test('capture a bag, review the label, browse and search on phone and station', 
   await page.goto('/settings')
   await page.getByLabel("New person's name").fill('Ines')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
+  // An emoji avatar instead of the initial
+  await page.locator('button.person', { hasText: 'Ines' }).click()
+  await page.getByRole('radiogroup', { name: 'Avatar emoji' }).getByRole('radio', { name: '🦊' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('button.person', { hasText: 'Ines' }).locator('.avatar')).toHaveText('🦊')
 
   // One photo: the bag exists immediately, then its back / sticker can be added
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()

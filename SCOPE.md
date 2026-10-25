@@ -49,6 +49,7 @@ Multiple people share one inventory; each has their own tastings and preferences
 ## Users
 - Shared inventory (coffees, bags, equipment, recipes); per-person brews, tastings, preferences
 - No passwords (trusted LAN): profile picker; each device remembers a default user
+- Each person has a color and, optionally, an emoji avatar (picked from a grid of long-supported emoji, or typed on a phone); without one, the avatar shows their initial
   - Phone defaults to its owner
   - Station: **who's brewing** is a sticky avatar in the header (keeps the last brewer; tap to switch, +2 taps), shown large on the idle screen so a wrong attribution is obvious; editable on the brew afterwards
 - A brew has one brewer; **anyone can rate any cup** — no "who's drinking" step, so one brew can collect ratings from several people
