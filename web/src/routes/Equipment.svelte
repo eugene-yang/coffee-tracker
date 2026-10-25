@@ -2,12 +2,13 @@
   import BrewerArt from '../components/BrewerArt.svelte'
   import MethodIcon from '../components/MethodIcon.svelte'
   import RecipeForm from '../components/RecipeForm.svelte'
-  import { METHODS, defaultParams, latestRecipes, methodLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { METHODS, brewerLabel, defaultParams, latestRecipes, methodLabel, paramSummary, paramsOf, pickBrewer as usualBrewer, pickGrinder as usualGrinder } from '../lib/domain/brew'
   import type { Brewer, Grinder } from '../lib/domain/types'
   import ConfirmDialog from '../components/ConfirmDialog.svelte'
   import { deleteRecipe, recipeEditedLabel, saveBrewer, saveGrinder, setEquipmentHidden } from '../lib/equipment'
   import { ILLUSTRATIONS, illustration } from '../lib/illustrations'
-  import { brewers, grinders, kit, recipes } from '../lib/state/live.svelte'
+  import { device } from '../lib/state/device.svelte'
+  import { brewers, brews, grinders, kit, recipes } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
   import { showToast } from '../lib/state/toast.svelte'
 
@@ -68,6 +69,13 @@
   // ---- recipes
   let editingRecipe = $state<string | null>(null) // root id, or 'new'
   let deletingRecipe = $state<{ rootId: string; name: string | null } | null>(null)
+
+  /** A new recipe starts on the brewer and grinder this person uses most. */
+  function newRecipe() {
+    const b = usualBrewer(kit.brewers, brews.rows, device.userId, {})
+    const g = usualGrinder(kit.grinders, brews.rows, device.userId, null)
+    return { ...defaultParams(b?.method ?? 'pour_over'), brewer_id: b?.id ?? null, grinder_id: g?.id ?? null, name: '', note: '' }
+  }
   const latest = $derived(latestRecipes(recipes.rows))
 </script>
 
@@ -145,7 +153,7 @@
           <MethodIcon method={r.method} />
           <span class="text">
             <strong>{r.name}</strong>
-            <span class="muted">{paramSummary(paramsOf(r)) || methodLabel(r.method)}</span>
+            <span class="muted">{[brewers.get(r.brewer_id) ? `${brewerLabel(r, brewers.rows)}${brewers.get(r.brewer_id)?.hidden_at ? ' (hidden)' : ''}` : `Any ${methodLabel(r.method)}`, paramSummary(paramsOf(r))].filter(Boolean).join(' · ')}</span>
             <span class="muted small">{recipeEditedLabel(r)}</span>
           </span>
         </button>
@@ -154,7 +162,7 @@
     {#if editingRecipe === 'new'}
       <div class="card">
         <RecipeForm
-          initial={{ ...defaultParams('pour_over'), name: '', note: '' }}
+          initial={newRecipe()}
           onsaved={() => (editingRecipe = null)}
           oncancel={() => (editingRecipe = null)}
         />

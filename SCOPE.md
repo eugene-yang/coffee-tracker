@@ -127,6 +127,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - Versions stay in the data; the UI only shows "v3 · edited Oct 2" (no version browser)
   - Recipes are mostly created via **"Save as recipe"** after a brew; managed under Settings → Equipment & recipes
   - Brewers and grinders are **hidden** (retired), never deleted: off the brew screen, still named on old brews, back with Unhide
+  - Every recipe names one of the household's own brewers (its method comes from the brewer) and optionally a grinder; new ones start on the usual brewer, older method-only recipes ask for a brewer when edited
 - **Brews start from a bag** (no separate new-brew wizard): bag → **Brew again** (last brew for this bag × method, incl. grind setting) as the primary action; "Recipe…" / freestyle as secondary
   - Station also shows ↻ Brew again shortcuts for the current brewer above the inventory grid
 - Live brew screen has a pre-start state: the household's own brewers (and grinders, when more than one) preselected — never the generic method list — recipe chip, params summary `15 g · 250 g · 22 · 94°` — tap one for a stepper
