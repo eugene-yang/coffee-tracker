@@ -49,11 +49,11 @@
     </select>
     <select class:on={ratingFilter.brewer !== 'any'} bind:value={ratingFilter.brewer} aria-label="Brewer">
       <option value="any">Brewer: Any</option>
-      {#each brewers.rows as b (b.id)}<option value={b.id}>{b.name}</option>{/each}
+      {#each brewers.rows as b (b.id)}<option value={b.id}>{b.name}{b.hidden_at ? ' (hidden)' : ''}</option>{/each}
     </select>
     <select class:on={ratingFilter.grinder !== 'any'} bind:value={ratingFilter.grinder} aria-label="Grinder">
       <option value="any">Grinder: Any</option>
-      {#each grinders.rows as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
+      {#each grinders.rows as g (g.id)}<option value={g.id}>{g.name}{g.hidden_at ? ' (hidden)' : ''}</option>{/each}
     </select>
   </div>
   {#if filtered}

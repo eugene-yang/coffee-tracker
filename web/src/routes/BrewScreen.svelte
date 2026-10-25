@@ -23,7 +23,7 @@
   import { brewState, undoBrew } from '../lib/state/brew.svelte'
   import { currentLayout, device } from '../lib/state/device.svelte'
   import { inventory } from '../lib/state/inventory.svelte'
-  import { brewers, brews, grinders, recipes, users } from '../lib/state/live.svelte'
+  import { brewers, brews, kit, recipes, users } from '../lib/state/live.svelte'
   import { href, navigate, route } from '../lib/state/router.svelte'
   import { showToast } from '../lib/state/toast.svelte'
 
@@ -45,7 +45,7 @@
   // An unstarted setup left from before the household's brewers were added (or with one since
   // removed) picks one of them now, so the brew is linked to real equipment
   $effect(() => {
-    const owned = brewers.rows
+    const owned = kit.brewers
     untrack(() => {
       const d = brewState.draft
       if (d?.bagId === bagId && d.phase === 'setup' && owned.length && !owned.some((b) => b.id === d.params.brewer_id))
@@ -65,7 +65,7 @@
     latestRecipes(recipes.rows).filter((r) => (r.brewer_id ? r.brewer_id === p?.brewer_id : r.method === p?.method)),
   )
   const hasAgain = $derived(!!brewAgainSource(brews.rows, bagId, device.userId, p?.method, p?.brewer_id))
-  const missingKit = $derived([!brewers.rows.length && 'brewer', !grinders.rows.length && 'grinder'].filter(Boolean).join(' and '))
+  const missingKit = $derived([!kit.brewers.length && 'brewer', !kit.grinders.length && 'grinder'].filter(Boolean).join(' and '))
   const brewerUserId = $derived(draft?.brewerUserId ?? device.userId)
   // Every brew is someone's: no brewing until this device (or the station's "Who's brewing?") has a person
   const brewingAs = $derived(users.get(brewerUserId))
@@ -216,18 +216,18 @@
           </div>
         {/if}
 
-        {#if brewers.rows.length}
+        {#if kit.brewers.length}
           <div class="chips" role="radiogroup" aria-label="Brewer">
-            {#each brewers.rows as b (b.id)}
+            {#each kit.brewers as b (b.id)}
               <button class="chip brewer" role="radio" aria-checked={p.brewer_id === b.id} class:on={p.brewer_id === b.id} onclick={() => chooseBrewer(b.id)}>
                 <BrewerArt illustrationKey={b.illustration} method={b.method} size={36} />{b.name}
               </button>
             {/each}
           </div>
         {/if}
-        {#if grinders.rows.length > 1}
+        {#if kit.grinders.length > 1}
           <div class="chips" role="radiogroup" aria-label="Grinder">
-            {#each grinders.rows as g (g.id)}
+            {#each kit.grinders as g (g.id)}
               <button class="chip" role="radio" aria-checked={p.grinder_id === g.id} class:on={p.grinder_id === g.id} onclick={() => brewState.update({ grinder_id: g.id })}
                 >{g.name}</button
               >

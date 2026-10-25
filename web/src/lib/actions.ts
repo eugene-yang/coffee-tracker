@@ -171,18 +171,3 @@ export async function saveReview(input: SaveReviewInput): Promise<void> {
     await mutate('extraction', input.bagId, { corrected_fields: corrected })
   }
 }
-
-/**
- * Delete with undo: deletes sync as tombstones and can't be reverted, so the bag is only hidden
- * while the undo toast is up and actually deleted when it closes.
- */
-export function deleteBagLater(bagId: string, hide: (id: string, hidden: boolean) => void, ms = 5000): () => void {
-  hide(bagId, true)
-  const timer = setTimeout(() => {
-    remove('bag', bagId).finally(() => hide(bagId, false))
-  }, ms)
-  return () => {
-    clearTimeout(timer)
-    hide(bagId, false)
-  }
-}

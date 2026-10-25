@@ -17,7 +17,7 @@
   // Seeded once; the parent remounts the form for a different recipe
   let r = $state(untrack(() => structuredClone($state.snapshot(initial) as RecipeInput)))
   let stepsText = $state(stepsToText(r.steps))
-  const methodBrewers = $derived(brewers.rows.filter((b) => b.method === r.method))
+  const methodBrewers = $derived(brewers.rows.filter((b) => b.method === r.method && (!b.hidden_at || b.id === r.brewer_id)))
 
   async function save() {
     const id = await saveRecipe(recipes.rows, rootId, { ...$state.snapshot(r), steps: parseSteps(stepsText) } as RecipeInput, device.userId)
@@ -51,7 +51,7 @@
     <span class="muted">Grinder</span>
     <select bind:value={r.grinder_id}>
       <option value={null}>—</option>
-      {#each grinders.rows as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
+      {#each grinders.rows.filter((g) => !g.hidden_at || g.id === r.grinder_id) as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
     </select>
   </label>
   <label class="field">

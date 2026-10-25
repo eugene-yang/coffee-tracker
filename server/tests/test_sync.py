@@ -178,6 +178,14 @@ def test_owned_brewers_are_seeded_once(client):
     push(client, op(table="brewer", id="seed:siphon", kind="delete"))
 
 
+def test_equipment_is_hidden_not_deleted(client):
+    push(client, op(table="grinder", id="g1", name="C40"), op(table="brewer", id="seed:v60", hidden_at="2026-10-25T08:00:00Z"))
+    push(client, op(table="grinder", id="g1", hidden_at="2026-10-25T08:00:00Z"))
+    rows = {r["row"]["id"]: r["row"] for r in pull(client, since=0, limit=2000)["rows"] if r["table"] in ("brewer", "grinder")}
+    assert rows["seed:v60"]["hidden_at"] == rows["g1"]["hidden_at"] == "2026-10-25T08:00:00Z"
+    assert rows["g1"]["deleted_at"] is None and rows["g1"]["name"] == "C40"
+
+
 def restore_op(table, id, **row):
     return {"op_id": str(uuid.uuid4()), "table": table, "id": id, "kind": "restore", "patch": row}
 

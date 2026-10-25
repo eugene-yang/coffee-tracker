@@ -5,7 +5,7 @@ import { uuidv7 } from '../db/uuid'
 import { brewAgainSource, defaultParams, paramsOf, pickBrewer, pickGrinder } from '../domain/brew'
 import type { BrewParams, Recipe, StartedFrom } from '../domain/types'
 import { device } from './device.svelte'
-import { brewers, brews, grinders } from './live.svelte'
+import { brews, kit } from './live.svelte'
 
 export interface BrewDraft {
   id: string
@@ -60,7 +60,7 @@ class BrewState {
       : opts.recipe
         ? { brewerId: opts.recipe.brewer_id, method: opts.recipe.method }
         : { brewerId: last?.brewer_id, method: last?.method ?? opts.method }
-    const brewer = pickBrewer(brewers.rows, brews.rows, userId, want) ?? pickBrewer(brewers.rows, brews.rows, userId, {})
+    const brewer = pickBrewer(kit.brewers, brews.rows, userId, want) ?? pickBrewer(kit.brewers, brews.rows, userId, {})
     const method = brewer?.method ?? want.method ?? 'pour_over'
 
     const source = opts.recipe || opts.freestyle ? undefined : brewAgainSource(brews.rows, bagId, userId, method, brewer?.id)
@@ -76,7 +76,7 @@ class BrewState {
       params = defaultParams(method)
       startedFrom = 'freestyle'
     }
-    const grinder = pickGrinder(grinders.rows, brews.rows, userId, params.grinder_id)
+    const grinder = pickGrinder(kit.grinders, brews.rows, userId, params.grinder_id)
     params = { ...params, method, brewer_id: brewer?.id ?? null, grinder_id: grinder?.id ?? null }
     this.draft = {
       id: uuidv7(),

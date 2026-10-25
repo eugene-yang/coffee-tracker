@@ -37,18 +37,8 @@ class InventoryState {
 
   hits = $derived(search(this.index, this.text))
 
-  // Bags pending deletion (undo toast still showing)
-  hidden = $state(new Set<string>())
-
   constructor() {
     setInterval(() => (this.now = new Date()), 10 * 60_000)
-  }
-
-  setHidden = (id: string, hide: boolean) => {
-    const next = new Set(this.hidden)
-    if (hide) next.add(id)
-    else next.delete(id)
-    this.hidden = next
   }
 
   clear() {

@@ -3,10 +3,13 @@
   // Editing the details (or reviewing a new bag's label) is a separate step.
   import BagActions from '../components/BagActions.svelte'
   import BagHistory from '../components/BagHistory.svelte'
+  import ConfirmDialog from '../components/ConfirmDialog.svelte'
   import FreshnessBar from '../components/FreshnessBar.svelte'
   import Photo from '../components/Photo.svelte'
   import ReviewForm from '../components/ReviewForm.svelte'
-  import { MAX_PHOTOS_PER_BAG, addPhoto, deleteBagLater } from '../lib/actions'
+  import { MAX_PHOTOS_PER_BAG, addPhoto } from '../lib/actions'
+  import { cascadeSentence } from '../lib/domain/deletes'
+  import { bagDeletion, deleteWithUndo } from '../lib/state/deletes.svelte'
   import { brewAgainSource, brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import { flavorTag } from '../lib/domain/flavors'
   import { brewState } from '../lib/state/brew.svelte'
@@ -14,7 +17,6 @@
   import { inventory } from '../lib/state/inventory.svelte'
   import { bags, brewers, brews } from '../lib/state/live.svelte'
   import { href, navigate, replace, route } from '../lib/state/router.svelte'
-  import { showToast } from '../lib/state/toast.svelte'
 
   const id = $derived(route.path.split('/')[2] ?? '')
   const view = $derived(inventory.byId.get(id))
@@ -40,10 +42,16 @@
     if (file && view) await addPhoto(view.id, file, view.photoIds.length)
   }
 
+  let confirming = $state(false)
+  const cascade = $derived(confirming && view ? bagDeletion(view.id) : null)
+
   function del() {
-    if (!view) return
-    const undo = deleteBagLater(view.id, inventory.setHidden)
-    showToast('Bag deleted', undo)
+    if (!view || !cascade) return
+    // A brew of this bag still being set up or timed goes with it (and comes back with Undo)
+    const draft = brewState.draft?.bagId === view.id ? $state.snapshot(brewState.draft) : null
+    if (draft) brewState.discard()
+    deleteWithUndo(`${view.title} deleted`, cascade.rows, () => draft && brewState.restore(draft))
+    confirming = false
     navigate('/inventory')
   }
 
@@ -142,8 +150,16 @@
       </section>
     {/if}
 
-    <button class="danger" onclick={del}>Delete bag</button>
+    <button class="danger" onclick={() => (confirming = true)}>Delete bag</button>
   </div>
+  {#if cascade}
+    <ConfirmDialog
+      title="Delete {view.title}?"
+      message={[cascadeSentence(cascade, 'bag'), brewState.draft?.bagId === view.id ? 'The brew in progress is discarded.' : ''].filter(Boolean).join(' ')}
+      onconfirm={del}
+      oncancel={() => (confirming = false)}
+    />
+  {/if}
 {/if}
 
 <style>
