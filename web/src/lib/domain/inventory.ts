@@ -12,6 +12,11 @@ export const REST_WINDOW_SETTING = 'rest_window'
 export const DEFAULT_REST_WINDOW: RestWindow = { rest_days: 7, peak_days: 35 }
 export const DEFAULT_DOSE_G = 15
 
+/** Where a newly added bag goes: straight into the freezer (the default) or on the shelf to rest. */
+export const NEW_BAG_SETTING = 'new_bag_state'
+export type NewBagState = 'frozen' | 'shelf'
+export const DEFAULT_NEW_BAG_STATE: NewBagState = 'frozen'
+
 export type BagState = 'open' | 'ready' | 'resting' | 'frozen' | 'finished'
 export type Freshness = 'resting' | 'peak' | 'fading'
 

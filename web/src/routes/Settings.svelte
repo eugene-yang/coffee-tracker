@@ -9,7 +9,15 @@
     clampThresholds,
     type TempBandThresholds,
   } from '../lib/domain/tempBand'
-  import { DEFAULT_DOSE_G, DEFAULT_REST_WINDOW, REST_WINDOW_SETTING, type RestWindow } from '../lib/domain/inventory'
+  import {
+    DEFAULT_DOSE_G,
+    DEFAULT_NEW_BAG_STATE,
+    DEFAULT_REST_WINDOW,
+    NEW_BAG_SETTING,
+    REST_WINDOW_SETTING,
+    type NewBagState,
+    type RestWindow,
+  } from '../lib/domain/inventory'
   import { device, setDeviceUser, setLayoutChoice, type LayoutChoice } from '../lib/state/device.svelte'
   import { DOSE_SETTING } from '../lib/state/inventory.svelte'
   import { settingValue, users } from '../lib/state/live.svelte'
@@ -57,6 +65,11 @@
 
   const rest = $derived(settingValue<RestWindow>(REST_WINDOW_SETTING, DEFAULT_REST_WINDOW))
   const dose = $derived(settingValue<number>(DOSE_SETTING, DEFAULT_DOSE_G))
+  const newBag = $derived(settingValue<NewBagState>(NEW_BAG_SETTING, DEFAULT_NEW_BAG_STATE))
+  const NEW_BAG: { value: NewBagState; label: string }[] = [
+    { value: 'frozen', label: 'Freezer' },
+    { value: 'shelf', label: 'Shelf' },
+  ]
 
   function stepRest(key: keyof RestWindow, delta: number) {
     const next = { ...rest, [key]: Math.max(0, rest[key] + delta) }
@@ -193,6 +206,17 @@
   <section class="stack">
     <h2>Beans</h2>
     <div class="card stack">
+      <span class="muted">New bags go to</span>
+      <div class="segmented two" role="radiogroup" aria-label="New bags go to">
+        {#each NEW_BAG as o (o.value)}
+          <button
+            role="radio"
+            aria-checked={newBag === o.value}
+            class:selected={newBag === o.value}
+            onclick={() => mutate('setting', NEW_BAG_SETTING, { value: o.value })}>{o.label}</button
+          >
+        {/each}
+      </div>
       <span class="muted">Days off roast for the freshness bar (freezer time doesn't count).</span>
       {#each [{ key: 'rest_days', label: 'Resting until day' }, { key: 'peak_days', label: 'Peak until day' }] as r (r.key)}
         {@const key = r.key as keyof RestWindow}
@@ -264,6 +288,9 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+  }
+  .segmented.two {
+    grid-template-columns: repeat(2, 1fr);
   }
   .swatch {
     width: var(--tap);

@@ -18,6 +18,7 @@ export function navigate(path: string): void {
   history.pushState(null, '', href(path))
   route.path = path
   window.scrollTo(0, 0)
+  document.querySelector('[data-scroll]')?.scrollTo(0, 0) // the phone layout scrolls inside <main>
 }
 
 /** Change the URL without a new history entry (e.g. once a screen's record has an id). */

@@ -80,10 +80,11 @@ Multiple people share one inventory; each has their own tastings and preferences
   - Roaster, name, roast date, weight first; the rest collapsed
   - One **"Looks right"** button accepts everything; VLM-filled fields carry a dot until confirmed
   - Needs-review bags are brewable right away as "Untitled · Oct 21"
-- Capture opens the camera immediately; after each shot "Add another · Done" (max 3); saves in the background
+- Capture opens the camera immediately (or "From photos" picks up to 3 from the library); after each shot "Add another · Done" (max 3); saves in the background
 - Autocomplete + aliases for roaster / process / variety / origin (Gesha = Geisha, Fully Washed = Washed)
 - Store raw VLM output, model, prompt version, and which fields the user corrected
 - Bag status: Resting / Open / Frozen / Finished; grams remaining (derived, manual adjust as an event)
+  - New bags go straight into the freezer by default (setting: Freezer · Shelf); freezer time doesn't count toward age
 
 ### Inventory browsing — the most-used feature
 Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIEW.md` §2.

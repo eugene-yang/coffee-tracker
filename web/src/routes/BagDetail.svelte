@@ -60,7 +60,7 @@
       {/each}
       {#if view.photoIds.length < MAX_PHOTOS_PER_BAG}
         <label class="photo add">
-          <input type="file" accept="image/*" capture="environment" onchange={onAddPhoto} aria-label="Add a photo" />
+          <input type="file" accept="image/*" onchange={onAddPhoto} aria-label="Add a photo" />
           + Photo
         </label>
       {/if}
