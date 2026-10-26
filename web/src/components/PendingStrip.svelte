@@ -25,7 +25,7 @@
           <span class="muted">{brewerLabel(c.brew, brewers.rows)} · <TempIcon band={suggestTempBand(c.minutes, tastingState.thresholds)} size={16} word /> · {Math.round(c.minutes)}m</span>
         </span>
         <span class="who">
-          {#each users.rows as u (u.id)}
+          {#each users.rows.filter((u) => !c.dismissed.has(u.id)) as u (u.id)}
             {@const t = c.latest.get(u.id)}
             <button class="person" class:rated={!!t} aria-label="Rate {titleOf(c.brew)} as {u.name}" onclick={() => (sheet = { brew: c.brew, userId: u.id })}>
               <Avatar user={u} size={40} />

@@ -11,7 +11,7 @@
   import { brewers, users } from '../lib/state/live.svelte'
   import { href } from '../lib/state/router.svelte'
   import { timeAgo } from '../lib/state/shortcuts.svelte'
-  import { rateLink, ratedToast, tastingState } from '../lib/state/tastings.svelte'
+  import { dismissCups, rateLink, ratedToast, tastingState } from '../lib/state/tastings.svelte'
 
   let { p }: { p: PendingTasting } = $props()
 
@@ -37,6 +37,7 @@
     {#if showStars}
       <TempChip band={tastingState.bandFor(p.brew, p.userId)} minutes={p.minutes} oncycle={() => tastingState.cycle(p.brew, p.userId)} />
     {/if}
+    <button class="dismiss" aria-label="Dismiss {title}: not drinking it" onclick={() => dismissCups([p.brew.id], p.userId)}>✕</button>
   </div>
 
   {#if showStars}
@@ -72,6 +73,16 @@
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+  .dismiss {
+    flex: none;
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
   }
   .title {
     flex: 1;

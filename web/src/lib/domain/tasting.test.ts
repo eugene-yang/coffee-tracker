@@ -39,6 +39,12 @@ describe('pendingTastings', () => {
     ])
   })
 
+  it("leaves out cups the person dismissed, and only theirs", () => {
+    const dismissed = [{ brew_id: 'a', user_id: 'ana' }]
+    expect(pendingTastings([brew('a', 3), brew('b', 5)], [], NOW, DEFAULT_TEMP_BANDS, 'ana', dismissed).map((c) => c.brew.id)).toEqual(['b'])
+    expect(pendingTastings([brew('a', 3)], [], NOW, DEFAULT_TEMP_BANDS, 'bo', dismissed).map((c) => c.brew.id)).toEqual(['a'])
+  })
+
   it('keeps unrated cups half a day and rated ones two hours on the list', () => {
     expect(cards([brew('a', 11 * 60)], []).length).toBe(1)
     expect(cards([brew('a', 13 * 60)], [])).toEqual([])
@@ -58,6 +64,13 @@ describe('pendingCups', () => {
     ])
     expect([d.brew.id, d.latest.size, d.suggested]).toEqual(['b', 0, 'cool'])
     expect(pendingCups([brew('a', 150)], [tasting('a', 'bo', 140, 'hot')], NOW, DEFAULT_TEMP_BANDS)).toEqual([])
+  })
+
+  it("marks who isn't drinking a cup, and drops it once everyone has dismissed it", () => {
+    const d = [{ brew_id: 'a', user_id: 'ana' }]
+    const [c] = pendingCups([brew('a', 10)], [], NOW, DEFAULT_TEMP_BANDS, d, ['ana', 'bo'])
+    expect([...c.dismissed]).toEqual(['ana'])
+    expect(pendingCups([brew('a', 10)], [], NOW, DEFAULT_TEMP_BANDS, [...d, { brew_id: 'a', user_id: 'bo' }], ['ana', 'bo'])).toEqual([])
   })
 
   it('keeps every rating separate, even two at the same temperature', () => {

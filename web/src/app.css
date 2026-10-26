@@ -15,8 +15,8 @@
   --radius: 12px;
   --gap: 12px;
   --tap: 48px;
-  /* Strip under the layout viewport in iOS Home Screen apps (set by lib/viewport.ts). It already
-     covers the home indicator, so bottom bars only pad for whatever of the safe area it doesn't */
+  /* Strip under the layout viewport in iOS Home Screen apps (see below). It already covers the
+     home indicator, so bottom bars only pad for whatever of the safe area it doesn't */
   --viewport-gap: 0px;
   --bottom-inset: max(0px, env(safe-area-inset-bottom) - var(--viewport-gap));
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -78,11 +78,19 @@ body {
   overscroll-behavior: none;
 }
 
-/* iOS Home Screen app: iOS shows only the page background in the strip below the layout viewport,
-   never fixed bars, so paint it in the tab bar's color and the bar reads as reaching the bottom edge */
-:root.ios-gap:has(.phone),
-:root.ios-gap:has(.phone) body {
-  background: var(--surface);
+/* iOS 26 Home Screen apps lay out against a viewport shorter than the screen (WebKit bug 292603):
+   the strip below it counts as "large viewport" but not "dynamic", so its height is 100lvh − 100dvh,
+   current at every moment (a script measuring once at launch sometimes got 0). iOS shows only the
+   page background there, never fixed bars, so the page background takes the tab bar's color and the
+   bar reads as reaching the bottom edge. Elsewhere (Safari tabs, Android, no bug) the strip is 0. */
+@media (display-mode: standalone) {
+  :root {
+    --viewport-gap: max(0px, 100lvh - 100dvh);
+  }
+  :root:has(.phone),
+  :root:has(.phone) body {
+    background: var(--surface);
+  }
 }
 
 button,

@@ -118,33 +118,20 @@ test('equipment is hidden, not deleted: off the brew screen, back with Unhide', 
   await phone.close()
 })
 
-test('iOS Home Screen app: the tab bar stays where iOS draws and the strip below is painted to match', async ({ browser }) => {
-  // iOS 26 lays a Home Screen app out against a viewport shorter than the screen (59 px on a 15 Pro)
-  const ctx = await browser.newContext({ viewport: { width: 393, height: 793 }, screen: { width: 393, height: 852 } })
-  await ctx.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }))
+test('tab bar: at the bottom of the page in a browser tab, with no strip allowance', async ({ browser }) => {
+  // The iOS Home Screen strip (100lvh − 100dvh, installed app only) can't be emulated in Chromium;
+  // here it must resolve to 0 so a browser tab keeps the standard layout.
+  const ctx = await browser.newContext({ viewport: { width: 393, height: 793 } })
   const page = await ctx.newPage()
   await page.goto('/inventory')
-  const nav = page.getByRole('navigation', { name: 'Sections' })
-  await expect(nav).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible()
   const m = await page.evaluate(() => {
-    const r = document.querySelector('nav[aria-label="Sections"]')!.getBoundingClientRect()
+    const nav = document.querySelector('nav[aria-label="Sections"]')!.getBoundingClientRect()
     const dock = document.querySelector('.dock')!.getBoundingClientRect()
-    const css = (el: Element, p: string) => getComputedStyle(el).getPropertyValue(p)
-    const surface = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim()
-    const probe = document.createElement('div')
-    probe.style.color = surface
-    document.body.append(probe)
-    return { bottom: r.bottom, dockBottom: dock.bottom, top: r.top, inner: innerHeight, page: css(document.documentElement, 'background-color'), surface: getComputedStyle(probe).color }
+    return { bottom: nav.bottom, top: nav.top, dockBottom: dock.bottom, inner: innerHeight, gap: getComputedStyle(document.documentElement).getPropertyValue('--viewport-gap').trim() }
   })
-  expect(m.bottom).toBe(m.inner) // fully inside the area iOS draws: nothing clipped
-  expect(m.dockBottom).toBe(m.top) // the search dock sits right on top of the bar
-  expect(m.page).toBe(m.surface) // the strip below shows the bar's color
+  expect(m.bottom).toBe(m.inner)
+  expect(m.dockBottom).toBe(m.top)
+  expect(m.gap).toBe('0px')
   await ctx.close()
-
-  // A Safari tab is unchanged
-  const tab = await browser.newContext({ viewport: { width: 393, height: 793 } })
-  const p2 = await tab.newPage()
-  await p2.goto('/inventory')
-  expect(await p2.evaluate(() => document.documentElement.classList.contains('ios-gap'))).toBe(false)
-  await tab.close()
 })

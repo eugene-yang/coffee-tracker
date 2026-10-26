@@ -91,6 +91,8 @@ def test_skips_rated_undone_stale_and_unsubscribed(app_client):
     sync_push(app_client, op(table="brew", id="undone", kind="delete"))
     brew(app_client, "stale", push.MAX_AGE_MIN + 5, "ana")  # arrived late from an offline device
     brew(app_client, "nobody", 10, "cy")  # cy has no subscription
+    brew(app_client, "dismissed", 10, "ana")  # ana said she isn't drinking it
+    sync_push(app_client, op(table="dismissal", id="dismissed:ana", brew_id="dismissed", user_id="ana"))
     assert push.send_due(app_client.conn, app_client.sender, NOW) == 0
 
 

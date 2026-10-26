@@ -270,6 +270,7 @@
       <button onclick={() => syncNow()}>Sync now</button>
     </div>
   </section>
+
 </div>
 
 <style>

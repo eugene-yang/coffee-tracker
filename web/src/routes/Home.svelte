@@ -5,7 +5,7 @@
   import BrewShortcut from '../components/BrewShortcut.svelte'
   import RecentBrews from '../components/RecentBrews.svelte'
   import PendingCard from '../components/PendingCard.svelte'
-  import { tastingState } from '../lib/state/tastings.svelte'
+  import { dismissCups, tastingState } from '../lib/state/tastings.svelte'
   import { shortcutsFor } from '../lib/state/shortcuts.svelte'
 
   const shortcuts = $derived(shortcutsFor())
@@ -26,11 +26,16 @@
   {/if}
 
   <section class="stack" aria-label="Pending tastings">
-    <h2>Pending tastings</h2>
+    <div class="section-head">
+      <h2>Pending tastings</h2>
+      {#if pending.length >= 2 && me}
+        <button class="dismiss-all" onclick={() => dismissCups(pending.map((p) => p.brew.id), me.id)}>Dismiss all</button>
+      {/if}
+    </div>
     {#each pending as p (p.key)}
       <PendingCard {p} />
     {:else}
-      <p class="muted">Cups you’re drinking show up here to rate.</p>
+      <p class="muted">Recent cups show up here to rate.</p>
     {/each}
   </section>
 
@@ -63,5 +68,18 @@
   }
   p a {
     color: var(--accent);
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .dismiss-all {
+    min-height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 14px;
   }
 </style>
