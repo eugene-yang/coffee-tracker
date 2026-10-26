@@ -91,29 +91,6 @@ body {
   :root:has(.phone) body {
     background: var(--surface);
   }
-
-  /* EXPERIMENT (switched on from the preview's screen readout): a page exactly the full screen tall
-     with a bar that isn't fixed, which iOS may draw into the strip, so the labels sit as low as in
-     iOS's own apps. Kept only if it doesn't let the page scroll on a real iPhone. */
-  :root.bar-full,
-  :root.bar-full body {
-    height: 100lvh;
-    overflow: hidden;
-  }
-  :root.bar-full {
-    --viewport-gap: 0px;
-  }
-  :root.bar-full .phone {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 100lvh;
-  }
-  :root.bar-full .dock {
-    position: absolute;
-  }
-  :root.bar-full .toast {
-    bottom: calc(80px + var(--bottom-inset) - (100lvh - 100dvh));
-  }
 }
 
 button,
