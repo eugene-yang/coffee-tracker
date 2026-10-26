@@ -108,6 +108,8 @@ def due_notifications(conn: sqlite3.Connection, now: datetime) -> list[Due]:
              AND NOT EXISTS (SELECT 1 FROM tasting t WHERE t.brew_id = b.id AND t.taster_id = b.brewer_user_id
                              AND t.deleted_at IS NULL)
              AND NOT EXISTS (SELECT 1 FROM push_sent p WHERE p.brew_id = b.id AND p.user_id = b.brewer_user_id)
+             AND NOT EXISTS (SELECT 1 FROM dismissal d WHERE d.brew_id = b.id AND d.user_id = b.brewer_user_id
+                             AND d.deleted_at IS NULL)
            ORDER BY b.brewed_at""",
         (due_before, stale_before),
     ).fetchall()

@@ -4,7 +4,7 @@ import { uuidv7 } from '../db/uuid'
 import { cycleBand, minutesSince, overallLabel, pendingCups, pendingTastings, toggleTag, type PendingTasting } from '../domain/tasting'
 import { DEFAULT_TEMP_BANDS, TEMP_BANDS_SETTING, suggestTempBand, type TempBand, type TempBandThresholds } from '../domain/tempBand'
 import type { Brew, Tasting } from '../domain/types'
-import { brews, settingValue, tastings } from './live.svelte'
+import { brews, dismissals, settingValue, tastings, users } from './live.svelte'
 import { showToast } from './toast.svelte'
 
 export const TASTING_SCHEMA_VERSION = 1
@@ -13,14 +13,14 @@ class TastingState {
   // Minutes since brewing move the suggested band: tick every 15 s
   now = $state(nowMs())
   thresholds = $derived(settingValue<TempBandThresholds>(TEMP_BANDS_SETTING, DEFAULT_TEMP_BANDS))
-  cups = $derived(pendingCups(brews.rows, tastings.rows, this.now, this.thresholds))
+  cups = $derived(pendingCups(brews.rows, tastings.rows, this.now, this.thresholds, dismissals.rows, users.rows.map((u) => u.id)))
 
   constructor() {
     setInterval(() => (this.now = nowMs()), 15_000)
   }
 
   forUser(userId: string | null): PendingTasting[] {
-    return userId ? pendingTastings(brews.rows, tastings.rows, this.now, this.thresholds, userId) : []
+    return userId ? pendingTastings(brews.rows, tastings.rows, this.now, this.thresholds, userId, dismissals.rows) : []
   }
 
   // Band picked before a star (keyed brew_id:user_id), shared by the cards and the sheet.
@@ -91,6 +91,25 @@ export async function rateCup(
   })
   tastingState.now = nowMs()
   return { id, undo: () => remove('tasting', id) }
+}
+
+/**
+ * "Not drinking these": off this person's pending list on every device (and their avatar off the
+ * station strip). They can still rate the cups later. Each dismissal is its own row, so Undo removes
+ * exactly these and a cup can be dismissed again afterwards.
+ */
+export async function dismissCups(brewIds: string[], userId: string): Promise<void> {
+  const ids: string[] = []
+  for (const brewId of brewIds) {
+    const id = uuidv7()
+    ids.push(id)
+    await mutate('dismissal', id, { brew_id: brewId, user_id: userId })
+  }
+  showToast(brewIds.length === 1 ? 'Cup dismissed' : `${brewIds.length} cups dismissed`, () => {
+    void (async () => {
+      for (const id of ids) await remove('dismissal', id)
+    })()
+  })
 }
 
 // Detail taps can come faster than a write + reload: apply them one after another, in order

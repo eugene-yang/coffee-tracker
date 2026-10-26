@@ -2,9 +2,11 @@
   // TEMPORARY (preview builds only): what iOS reports to the app about the screen and viewport, to fix
   // the tab bar in the Home Screen app from real numbers. Remove once the bar is confirmed.
   import { onMount } from 'svelte'
+  import { barFull, setBarFull } from '../lib/viewport'
 
   let lines = $state<[string, string][]>([])
   let tinted = $state(false)
+  let full = $state(barFull())
   let copied = $state(false)
 
   // Lengths only CSS knows (viewport units, safe-area insets), read through a probe element
@@ -34,9 +36,9 @@
       ['visualViewport', vv ? `${Math.round(vv.height * 10) / 10} (top ${vv.offsetTop})` : '—'],
       ['100vh / dvh / svh / lvh', ['100vh', '100dvh', '100svh', '100lvh'].map((v) => css(v)).join(' / ')],
       ['safe top / bottom', `${css('env(safe-area-inset-top)', 'paddingTop')} / ${css('env(safe-area-inset-bottom)', 'paddingTop')}`],
-      ['--viewport-gap', getComputedStyle(root).getPropertyValue('--viewport-gap').trim()],
+      ['--viewport-gap', css('var(--viewport-gap)')],
       ['--bottom-inset', css('var(--bottom-inset)', 'paddingTop')],
-      ['ios-gap class', `${root.classList.contains('ios-gap')}`],
+      ['tab bar mode', root.classList.contains('bar-full') ? 'full height (experiment)' : 'standard'],
       ['frame top / bottom', frame ? `${frame.top} / ${frame.bottom}` : '—'],
       ['tab bar top / bottom', nav ? `${Math.round(nav.top)} / ${Math.round(nav.bottom)}` : '—'],
     ]
@@ -80,6 +82,11 @@
       <button onclick={copy}>{copied ? 'Copied' : 'Copy'}</button>
       <button class:on={tinted} onclick={tint}>Tint page background</button>
     </div>
+    <div class="row">
+      <button class:on={!full} onclick={() => { full = false; setBarFull(false); setTimeout(read, 50) }}>Tab bar: standard</button>
+      <button class:on={full} onclick={() => { full = true; setBarFull(true); setTimeout(read, 50) }}>Full height (experiment)</button>
+    </div>
+    <p class="muted">Full height: the tab bar should reach the very bottom with its labels just above the home bar. Check that no page can be dragged up or down, including Inventory with its search box.</p>
     <p class="muted">With the tint on, anything magenta is the page itself; a strip that stays light is drawn by iOS outside the page.</p>
   </div>
 </section>

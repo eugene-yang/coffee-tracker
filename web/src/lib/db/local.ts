@@ -19,6 +19,7 @@ export const SYNC_TABLES = [
   'brew',
   'brew_taster',
   'tasting',
+  'dismissal',
 ] as const
 export type TableName = (typeof SYNC_TABLES)[number]
 
@@ -61,7 +62,7 @@ const storageFullListeners = new Set<() => void>()
 let actorId: () => string | null = () => null
 
 export function initDb(name = 'coffee'): Promise<IDBPDatabase<CoffeeDB>> {
-  dbPromise = openDB<CoffeeDB>(name, 4, {
+  dbPromise = openDB<CoffeeDB>(name, 5, {
     upgrade(db) {
       // Additive: create whatever stores this version knows about and the old one didn't
       const has = (s: string) => db.objectStoreNames.contains(s as never)

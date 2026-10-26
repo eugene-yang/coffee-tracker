@@ -48,6 +48,7 @@ SYNC_TABLES: dict[str, SyncTable] = {
         _t("brew", text="bag_id brewer_user_id method brewer_id grinder_id grind_setting recipe_id started_from brewed_at note",
            json="steps laps extras", number="dose_g water_g yield_g temp_c time_s recipe_version"),
         _t("brew_taster", text="brew_id user_id"),
+        _t("dismissal", text="brew_id user_id"),
         _t("tasting", text="brew_id taster_id rated_at temp_band temp_band_suggested note", json="tags",
            number="minutes_after_brew overall aroma acidity sweetness body aftertaste balance cleanness "
                   "compass_sour_bitter compass_weak_strong schema_version"),

@@ -152,6 +152,12 @@ export interface BrewTaster extends Row {
   user_id: string
 }
 
+/** A person isn't drinking this cup: off their pending list; they can still rate it. */
+export interface Dismissal extends Row {
+  brew_id: string
+  user_id: string
+}
+
 export type TagSource = 'roaster' | 'tasted'
 
 export interface TastingTag {

@@ -61,10 +61,19 @@ export function latestTastings(tastings: Tasting[]): Map<string, Tasting> {
  * Pending cards for one person: every recent cup, whoever brewed it (anyone can rate any cup).
  * Cups they haven't rated come first, then newest brew first.
  */
-export function pendingTastings(brews: Brew[], tastings: Tasting[], now: number, thresholds: TempBandThresholds, userId: string): PendingTasting[] {
+export function pendingTastings(
+  brews: Brew[],
+  tastings: Tasting[],
+  now: number,
+  thresholds: TempBandThresholds,
+  userId: string,
+  dismissed: { brew_id: string; user_id: string }[] = [],
+): PendingTasting[] {
   const mine = tastingsByCup(tastings.filter((t) => t.taster_id === userId))
+  const gone = new Set(dismissed.filter((d) => d.user_id === userId).map((d) => d.brew_id))
   const out: PendingTasting[] = []
   for (const brew of brews) {
+    if (gone.has(brew.id)) continue
     const minutes = minutesSince(brew.brewed_at, now)
     const key = `${brew.id}:${userId}`
     const list = mine.get(key) ?? []
@@ -89,17 +98,30 @@ export interface PendingCup {
   minutes: number
   suggested: TempBand
   latest: Map<string, Tasting> // each person's latest tasting, by user id
+  dismissed: Set<string> // people not drinking it (their avatar isn't offered)
 }
 
-/** Station strip: recent cups, one each, with everyone's latest rating; shown as long as on a phone. */
-export function pendingCups(brews: Brew[], tastings: Tasting[], now: number, thresholds: TempBandThresholds): PendingCup[] {
+/**
+ * Station strip: recent cups, one each, with everyone's latest rating; shown as long as on a phone.
+ * A cup everyone has dismissed (pass `people`) leaves the strip.
+ */
+export function pendingCups(
+  brews: Brew[],
+  tastings: Tasting[],
+  now: number,
+  thresholds: TempBandThresholds,
+  dismissals: { brew_id: string; user_id: string }[] = [],
+  people: string[] = [],
+): PendingCup[] {
   const latest = latestTastings(tastings)
   const out: PendingCup[] = []
   for (const brew of brews) {
     const minutes = minutesSince(brew.brewed_at, now)
     const mine = new Map([...latest].filter(([k]) => k.startsWith(`${brew.id}:`)).map(([, t]) => [t.taster_id, t]))
     if (minutes > (mine.size ? RATED_SHOWN_MAX_MIN : PENDING_MAX_MIN)) continue
-    out.push({ brew, minutes, suggested: suggestTempBand(minutes, thresholds), latest: mine })
+    const dismissed = new Set(dismissals.filter((d) => d.brew_id === brew.id).map((d) => d.user_id))
+    if (people.length && people.every((p) => dismissed.has(p))) continue
+    out.push({ brew, minutes, suggested: suggestTempBand(minutes, thresholds), latest: mine, dismissed })
   }
   return out.sort((a, b) => b.brew.brewed_at.localeCompare(a.brew.brewed_at))
 }

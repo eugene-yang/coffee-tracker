@@ -8,6 +8,7 @@ import type {
   Brewer,
   BrewTaster,
   Coffee,
+  Dismissal,
   Extraction,
   Grinder,
   Photo,
@@ -64,6 +65,7 @@ export const recipes = new LiveTable<Recipe>('recipe')
 export const brews = new LiveTable<Brew>('brew')
 export const brewTasters = new LiveTable<BrewTaster>('brew_taster')
 export const tastings = new LiveTable<Tasting>('tasting')
+export const dismissals = new LiveTable<Dismissal>('dismissal')
 
 /** Equipment that isn't hidden (retired): what new brews and recipes are offered. Old brews keep their names. */
 export const kit = {
