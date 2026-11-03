@@ -6,6 +6,7 @@
   import Stepper from '../components/Stepper.svelte'
   import {
     brewAgainSource,
+    brewLink,
     brewerLabel,
     cuesBetween,
     formatClock,
@@ -16,6 +17,7 @@
     ratio,
     stepGrind,
     stepLine,
+    stepsFromLaps,
     timerView,
   } from '../lib/domain/brew'
   import { beep, unlockAudio } from '../lib/sound'
@@ -156,13 +158,21 @@
     <h2>Saved</h2>
     <p class="big">{view.title}</p>
     <p class="muted">Rate it once it has cooled a little — it waits {layout === 'station' ? 'in the strip under the beans' : 'on Home'}.</p>
+    <a class="see" href={href(brewLink(saved.id))}>See this brew ›</a>
     {#if lastEspresso}
       <button class="primary huge" onclick={pullAnother}>Pull another</button>
     {/if}
     {#if savingRecipe && savedBrew}
       <div class="card">
         <RecipeForm
-          initial={{ ...paramsOf(savedBrew), name: `${view.title} · ${brewerLabel(savedBrew, brewers.rows)}`, note: '' }}
+          initial={{
+            ...paramsOf(savedBrew),
+            // The laps clicked become the steps (each lap ends one); without laps, the steps followed
+            steps: savedBrew.laps?.length ? stepsFromLaps(savedBrew.laps) : paramsOf(savedBrew).steps,
+            name: `${view.title} · ${brewerLabel(savedBrew, brewers.rows)}`,
+            note: '',
+          }}
+          nameSteps={!!savedBrew.laps?.length}
           onsaved={() => {
             savingRecipe = false
             showToast('Recipe saved')
@@ -481,5 +491,13 @@
   }
   .saved p {
     margin: 0;
+  }
+  .see {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
   }
 </style>

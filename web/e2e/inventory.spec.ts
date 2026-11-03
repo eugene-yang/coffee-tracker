@@ -42,6 +42,13 @@ test('capture a bag, review the label, browse and search on phone and station', 
   await page.getByRole('button', { name: 'Thaw' }).click()
   await expect(page.getByRole('status')).toContainText('Out of the freezer')
 
+  // Editing the details of a reviewed bag (it now has flavor tags) saves
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Producer / farm').fill('Kii Factory')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Edit details' })).toHaveCount(0)
+  await expect(page.getByText('Kii Factory')).toBeVisible()
+
   // Browse and search
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()
   await expect(page.getByRole('button', { name: /Kii AA Top Lot/ })).toBeVisible()

@@ -6,7 +6,7 @@
   import Stars from './Stars.svelte'
   import TempChip from './TempChip.svelte'
   import TempIcon from './TempIcon.svelte'
-  import { brewerLabel } from '../lib/domain/brew'
+  import { brewLink, brewerLabel } from '../lib/domain/brew'
   import { latestTastings, minutesSince, overallLabel } from '../lib/domain/tasting'
   import type { Brew } from '../lib/domain/types'
   import { inventory } from '../lib/state/inventory.svelte'
@@ -41,7 +41,7 @@
       <span class="name">{user?.name ?? '?'}</span>
       <button class="close" aria-label="Close" onclick={onclose}>✕</button>
     </div>
-    <p class="muted">{title} · {brewerLabel(brew, brewers.rows)}</p>
+    <button class="brew-link" onclick={() => navigate(brewLink(brew.id))}>{title} · {brewerLabel(brew, brewers.rows)} ›</button>
     {#if last}
       <p class="last">
         Last: <span class="lit">{'★'.repeat(last.overall ?? 0)}</span>
@@ -58,6 +58,14 @@
 </div>
 
 <style>
+  .brew-link {
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: var(--text-muted);
+    min-height: 40px;
+  }
   .backdrop {
     position: fixed;
     inset: 0;

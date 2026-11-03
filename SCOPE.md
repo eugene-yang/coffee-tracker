@@ -156,7 +156,7 @@ Browsing must be instant and finding a bag effortless. Details in `docs/UX_REVIE
   - Nothing is gated by time: the temperature thresholds only suggest a band; a cup can be rated again at any moment ("Rate again")
   - Every rating is its own tasting with its time and minutes after brewing — two at the same temperature stay apart
   - Changing a rating is an explicit Edit (keeps its time); the rate screen lists every rating of the cup
-  - Pending cards: unrated up to 12 h after brewing, rated ones (latest rating · Edit · Rate again) up to 2 h; any cup can still be rated from its bag or Tastings
+  - Pending cards: unrated up to 12 h after brewing, rated ones (latest rating · Edit · Rate again) up to 2 h; any cup can still be rated from its brew page (linked from Home, its bag, each of its ratings and Tastings)
   - No push for re-rates
 - "Pending tasting" card for recent unrated brews — a convenience only, nothing enforced; late ratings allowed, `minutes_after_brew` recorded
 - Optional web push "How's the cup?" when a brew reaches the server (iOS: Home Screen app only); offline brews rely on the in-app card

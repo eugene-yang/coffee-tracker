@@ -5,7 +5,7 @@
   import Stars from './Stars.svelte'
   import TempChip from './TempChip.svelte'
   import TempIcon from './TempIcon.svelte'
-  import { brewerLabel } from '../lib/domain/brew'
+  import { brewLink, brewerLabel } from '../lib/domain/brew'
   import { overallLabel, type PendingTasting } from '../lib/domain/tasting'
   import { inventory } from '../lib/state/inventory.svelte'
   import { brewers, users } from '../lib/state/live.svelte'
@@ -30,10 +30,10 @@
 <article class="card pending" class:rated={!showStars} aria-label="Cup: {title}">
   <div class="head">
     <MethodIcon method={p.brew.method} size={22} />
-    <span class="title">
+    <a class="title" href={href(brewLink(p.brew.id))}>
       <strong>{title}</strong>
       <span class="muted">{brewerLabel(p.brew, brewers.rows)}{brewer ? ` · brewed by ${brewer}` : ''}</span>
-    </span>
+    </a>
     {#if showStars}
       <TempChip band={tastingState.bandFor(p.brew, p.userId)} minutes={p.minutes} oncycle={() => tastingState.cycle(p.brew, p.userId)} />
     {/if}
@@ -89,6 +89,8 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    color: var(--text);
+    text-decoration: none;
   }
   .title > * {
     white-space: nowrap;

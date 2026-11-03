@@ -4,7 +4,7 @@
   // the bag with its whole history.
   import Avatar from '../components/Avatar.svelte'
   import TempIcon from '../components/TempIcon.svelte'
-  import { brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { brewLink, brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import { brewMatches, overallLabel } from '../lib/domain/tasting'
   import { device } from '../lib/state/device.svelte'
   import { inventory } from '../lib/state/inventory.svelte'
@@ -71,10 +71,10 @@
         {#if ratingFilter.who !== 'mine'}<Avatar user={users.get(t.taster_id)} size={28} />{/if}
         <span class="text">
           <span><span class="lit">{'★'.repeat(t.overall ?? 0)}</span> {overallLabel(t.overall)} <TempIcon band={t.temp_band} /></span>
-          <span class="muted">{brewerLabel(brew, brewers.rows)} · {paramSummary(paramsOf(brew))}</span>
         </span>
         <span class="muted when">{dateTime(t.rated_at)}</span>
       </a>
+      <a class="brew muted" href={href(brewLink(brew.id))}>Brew: {brewerLabel(brew, brewers.rows)} · {paramSummary(paramsOf(brew))} ›</a>
     </div>
   {:else}
     <p class="muted">{filtered ? 'No ratings match these filters.' : ratingFilter.who === 'mine' ? 'Your ratings show up here.' : 'No ratings yet.'}</p>
@@ -151,12 +151,17 @@
     flex-direction: column;
     min-width: 0;
   }
-  .text .muted,
-  .when {
-    font-size: 14px;
-  }
   .when {
     flex: none;
+    font-size: 14px;
+  }
+  .brew {
+    align-self: flex-start;
+    font-size: 14px;
+    text-decoration: none;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
   }
   .lit {
     color: var(--accent);

@@ -4,7 +4,7 @@
   import Avatar from './Avatar.svelte'
   import ConfirmDialog from './ConfirmDialog.svelte'
   import WhoFilter from './WhoFilter.svelte'
-  import { brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { brewLink, brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import TempIcon from './TempIcon.svelte'
   import { cascadeSentence } from '../lib/domain/deletes'
   import { overallLabel } from '../lib/domain/tasting'
@@ -44,10 +44,10 @@
     <article class="brew">
       <div class="head">
         <Avatar user={brewer} size={24} />
-        <span class="text">
-          <strong>{dateTime(b.brewed_at)} · {brewerLabel(b, brewers.rows)}</strong>
+        <a class="text" href={href(brewLink(b.id))}>
+          <strong>{dateTime(b.brewed_at)} · {brewerLabel(b, brewers.rows)} ›</strong>
           <span class="muted">{[paramSummary(paramsOf(b)), grinders.get(b.grinder_id)?.name, brewer?.name && `by ${brewer.name}`].filter(Boolean).join(' · ')}</span>
-        </span>
+        </a>
         {#if me}<a class="rate" href={href(rateLink(b.id, me.id))}>Rate</a>{/if}
         {#if filter}<button class="delete" aria-label="Delete brew from {dateTime(b.brewed_at)}" onclick={() => (deleting = b)}>Delete</button>{/if}
       </div>
@@ -92,6 +92,8 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    color: var(--text);
+    text-decoration: none;
   }
   .text .muted {
     font-size: 14px;
