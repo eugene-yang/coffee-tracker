@@ -11,7 +11,7 @@
   import Stars from '../components/Stars.svelte'
   import TempChip from '../components/TempChip.svelte'
   import TempIcon from '../components/TempIcon.svelte'
-  import { brewerLabel } from '../lib/domain/brew'
+  import { brewLink, brewerLabel } from '../lib/domain/brew'
   import { FLAVOR_FAMILIES, flavorTag } from '../lib/domain/flavors'
   import { PROFILE, QUALITY, cycleBand, minutesSince, overallLabel } from '../lib/domain/tasting'
   import { suggestTempBand } from '../lib/domain/tempBand'
@@ -114,10 +114,10 @@
 
     <header>
       <Avatar {user} size={layout === 'station' ? 56 : 40} />
-      <span class="titles">
-        <strong>{view?.title ?? 'Bag'}</strong>
+      <a class="titles" href={href(brewLink(brew.id))} onclick={saveNote}>
+        <strong>{view?.title ?? 'Bag'} ›</strong>
         <span class="muted">{user?.name ?? '?'} · {brewerLabel(brew, brewers.rows)} · brewed {timeAgo(brew.brewed_at, tastingState.now)}</span>
-      </span>
+      </a>
     </header>
     <p class="mode">
       {#if tasting}Editing the rating from {dateTime(tasting.rated_at)}{:else}New rating{/if}
@@ -252,6 +252,8 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    color: var(--text);
+    text-decoration: none;
   }
   .titles .muted {
     font-size: 14px;

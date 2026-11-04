@@ -153,7 +153,7 @@
           <MethodIcon method={r.method} />
           <span class="text">
             <strong>{r.name}</strong>
-            <span class="muted">{[brewers.get(r.brewer_id) ? `${brewerLabel(r, brewers.rows)}${brewers.get(r.brewer_id)?.hidden_at ? ' (hidden)' : ''}` : `Any ${methodLabel(r.method)}`, paramSummary(paramsOf(r))].filter(Boolean).join(' · ')}</span>
+            <span class="muted">{[brewers.get(r.brewer_id) ? `${brewerLabel(r, brewers.rows)}${brewers.get(r.brewer_id)?.hidden_at ? ' (hidden)' : ''}` : `Any ${methodLabel(r.method)}`, grinders.get(r.grinder_id)?.name, paramSummary(paramsOf(r))].filter(Boolean).join(' · ')}</span>
             <span class="muted small">{recipeEditedLabel(r)}</span>
           </span>
         </button>

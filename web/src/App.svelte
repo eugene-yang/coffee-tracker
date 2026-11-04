@@ -12,6 +12,7 @@
   import Settings from './routes/Settings.svelte'
   import Equipment from './routes/Equipment.svelte'
   import BrewScreen from './routes/BrewScreen.svelte'
+  import BrewDetail from './routes/BrewDetail.svelte'
   import Rate from './routes/Rate.svelte'
   import { currentLayout } from './lib/state/device.svelte'
   import { replace, route } from './lib/state/router.svelte'
@@ -41,6 +42,8 @@
     <Rate />
   {:else if section === 'brew' && route.path.split('/')[2]}
     <BrewScreen />
+  {:else if section === 'brews' && route.path.split('/')[2]}
+    <BrewDetail />
   {:else if section === 'tastings'}
     <Tastings />
   {:else if section === 'inventory' || (section === 'home' && layout === 'station')}

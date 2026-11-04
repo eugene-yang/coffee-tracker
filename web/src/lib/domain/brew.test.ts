@@ -10,6 +10,9 @@ import {
   nextVersion,
   paramSummary,
   parseSteps,
+  lapRows,
+  stepSpan,
+  stepsFromLaps,
   ratio,
   stepGrind,
   stepsToText,
@@ -158,5 +161,26 @@ describe('params', () => {
     const steps = parseSteps('0:00 Bloom 50g\n0:45 pour to 150 g\nswirl gently')
     expect(steps).toEqual([{ at_s: 0, to_g: 50, label: 'Bloom' }, { at_s: 45, to_g: 150, label: 'pour' }, { label: 'swirl gently' }])
     expect(stepsToText(steps)).toBe('0:00 Bloom 50g\n0:45 pour 150g\nswirl gently')
+  })
+  it('turns laps into steps that each end at a lap', () => {
+    const steps = stepsFromLaps([41.6, 90.2])
+    expect(steps).toEqual([
+      { label: 'Step 1', at_s: 0 },
+      { label: 'Step 2', at_s: 42 },
+      { label: 'Step 3', at_s: 90 },
+    ])
+    expect(stepsFromLaps([])).toEqual([])
+    expect(stepsFromLaps(null)).toEqual([])
+    expect([0, 1, 2].map((i) => stepSpan(steps, i, 165))).toEqual(['0:00–0:42', '0:42–1:30', '1:30–2:45'])
+    expect(stepSpan(steps, 2, null)).toBe('from 1:30')
+  })
+  it('lists laps with splits, then Done at the brew time', () => {
+    expect(lapRows([40, 95.5], 170)).toEqual([
+      { label: 'Lap 1', at_s: 40, split_s: 40 },
+      { label: 'Lap 2', at_s: 95.5, split_s: 55.5 },
+      { label: 'Done', at_s: 170, split_s: 74.5 },
+    ])
+    expect(lapRows([40], 40)).toEqual([{ label: 'Lap 1', at_s: 40, split_s: 40 }])
+    expect(lapRows(null, 170)).toEqual([])
   })
 })

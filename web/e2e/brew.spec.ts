@@ -43,15 +43,23 @@ test('station brew: setup, timer, save, grams left, save as recipe, brew again; 
   await tablet.getByRole('button', { name: 'Start' }).click()
   await expect(tablet.getByText(/^0:0\d$/)).toBeVisible()
   await tablet.waitForTimeout(1200)
+  await tablet.getByRole('button', { name: 'Lap' }).click()
+  await tablet.waitForTimeout(1200)
   await tablet.getByRole('button', { name: 'Done', exact: true }).click()
   await expect(tablet.getByRole('group', { name: "Who's drinking" })).toHaveCount(0)
   await tablet.getByRole('button', { name: 'Save brew' }).click()
 
-  // Saved → save as recipe (name prefilled)
+  // Saved → save as recipe (name prefilled); the lap made two steps, named after Save
   await expect(tablet.getByRole('heading', { name: 'Saved' })).toBeVisible()
   await tablet.getByRole('button', { name: 'Save as recipe' }).click()
   await expect(tablet.getByPlaceholder('e.g. Daily V60')).toHaveValue('Brew Test Kii · Kadou')
+  await expect(tablet.getByRole('textbox', { name: /^Steps/ })).toHaveValue(/^0:00 Step 1\n0:0\d Step 2$/)
   await tablet.getByRole('button', { name: 'Save recipe' }).click()
+  const naming = tablet.getByRole('group', { name: 'Name the steps' })
+  await expect(naming.getByLabel('Name of step 1')).toHaveValue('Step 1')
+  await expect(naming.getByLabel('Name of step 2')).toHaveValue('Step 2')
+  await naming.getByLabel('Name of step 1').fill('Bloom')
+  await naming.getByRole('button', { name: 'Save recipe' }).click()
   await expect(tablet.getByRole('status')).toContainText('Recipe saved')
   await tablet.getByRole('button', { name: 'Back to inventory' }).click()
 
@@ -70,9 +78,12 @@ test('station brew: setup, timer, save, grams left, save as recipe, brew again; 
   await expect(tablet.getByRole('heading', { name: 'Saved' })).toBeVisible()
   await expect(tablet.getByRole('button', { name: /Synced/ })).toBeVisible({ timeout: 15_000 })
 
-  // The recipe exists in Settings → Equipment with the brew's parameters
+  // The recipe exists in Settings → Equipment with the brew's equipment, parameters and named steps
   await tablet.goto('/settings/equipment')
-  await expect(tablet.getByRole('button', { name: /Brew Test Kii · Kadou/ })).toContainText('15.5 g · 250 g · 94°')
+  await expect(tablet.getByRole('button', { name: /Brew Test Kii · Kadou/ })).toContainText(/Kadou · (\S+ · )?15\.5 g · 250 g · 94°/) // brewer, grinder (when the household has one), settings
+  await tablet.getByRole('button', { name: /Brew Test Kii · Kadou/ }).click()
+  await expect(tablet.getByRole('radio', { name: /Kadou/ })).toHaveAttribute('aria-checked', 'true')
+  await expect(tablet.getByRole('textbox', { name: /^Steps/ })).toHaveValue(/^0:00 Bloom\n0:0\d Step 2$/)
 
   // Phone (Dana): both of Bruno's cups are hers to rate too; both brews in Recent; no Brew again
   // shortcut since Dana brewed nothing; no Brew tab

@@ -176,14 +176,15 @@ No per-entity REST endpoints — all data CRUD goes through sync.
 
 ## 7. Frontend
 
-**Screens** (7, after the UX review — `docs/UX_REVIEW.md`)
+**Screens** (8, after the UX review — `docs/UX_REVIEW.md`)
 | Route | Phone | Station |
 |---|---|---|
 | `/` | Home: pending tastings with inline stars + temp chip → Brew again cards (max 3) → Recent | Redirects to `/inventory` |
 | `/inventory` | List (80pt rows), sections, docked search, filter chips | Home: header (brewer avatar, flavor chips, More, Sort, sync dot) → ↻ Brew again shortcuts → grid → pending strip |
 | `/bag/:id` | Bag detail incl. review state ("Looks right"), events, brews & ratings, coffee fields | 360px side panel over the grid: Brew again, Recipe…, Open / Freeze / Finish, ±g |
 | `/capture` | Camera immediately, up to 3 shots, background save | — |
-| `/brew/:id` | Pre-start (own brewers + params summary) → live timer → Save brew → "Save as recipe" | Same, full screen, 160px timer |
+| `/brew/:id` | Pre-start (own brewers + params summary) → live timer → Save brew → "Save as recipe" (laps become steps, named after Save) | Same, full screen, 160px timer |
+| `/brews/:id` | One saved brew: rate it (stars + temp chip), every rating of the cup, recipe and settings, laps with splits; linked from every brew (Home, bag, rating, Tastings) | Same, from the pending strip and stars sheet |
 | `/rate/:brewId/:userId[/:tastingId]` | New rating, or Edit of one: profile, quality, tags, other notes; every rating of the cup | Same, opened from the stars sheet |
 | `/tastings` | Every rating, newest first; Mine · Everyone · one person | — |
 | `/settings` | Users, Equipment & recipes (grinders, brewers, recipes), thresholds, push, layout, sync | Users, sync, layout, thresholds (opened from the sync dot) |

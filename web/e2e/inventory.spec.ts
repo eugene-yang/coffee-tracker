@@ -42,6 +42,13 @@ test('capture a bag, review the label, browse and search on phone and station', 
   await page.getByRole('button', { name: 'Thaw' }).click()
   await expect(page.getByRole('status')).toContainText('Out of the freezer')
 
+  // Editing the details of a reviewed bag (it now has flavor tags) saves
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Producer / farm').fill('Kii Factory')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Edit details' })).toHaveCount(0)
+  await expect(page.getByText('Kii Factory')).toBeVisible()
+
   // Browse and search
   await page.getByRole('link', { name: 'Inventory', exact: true }).click()
   await expect(page.getByRole('button', { name: /Kii AA Top Lot/ })).toBeVisible()
@@ -111,7 +118,18 @@ test('phone: add several bags in one pick onto the shelf; the page frame never s
   // Several photos in one pick: one bag each, waiting under Needs review (the first test left one there)
   await expect(page.getByRole('button', { name: 'Synced', exact: true })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('heading', { name: 'Needs review (1)' })).toBeVisible()
-  const since = new Date().toISOString()
+  // The bags already there, by id: created_at carries the synced clock offset, so it can't be
+  // compared with this process's clock
+  const before = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const open = indexedDB.open('coffee')
+        open.onsuccess = () => {
+          const req = open.result.transaction('bag').objectStore('bag').getAllKeys()
+          req.onsuccess = () => resolve(req.result as string[])
+        }
+      }),
+  )
   await page.getByLabel('Add bags from photos').setInputFiles([BAG_PHOTO, BAG_PHOTO])
   await expect(page.getByRole('status')).toContainText('Added 2 bags')
   await expect(page).toHaveURL(/\/inventory$/)
@@ -127,7 +145,7 @@ test('phone: add several bags in one pick onto the shelf; the page frame never s
 
   // On the shelf: no "frozen" event was recorded for any of the three
   const [added, events] = await page.evaluate(
-    (since) =>
+    (before) =>
       new Promise<[number, string[]]>((resolve) => {
         const open = indexedDB.open('coffee')
         open.onsuccess = () => {
@@ -135,12 +153,12 @@ test('phone: add several bags in one pick onto the shelf; the page frame never s
           const bags = tx.objectStore('bag').getAll()
           const all = tx.objectStore('bag_event').getAll()
           tx.oncomplete = () => {
-            const ids = new Set(bags.result.filter((b) => b.created_at >= since).map((b) => b.id))
+            const ids = new Set(bags.result.filter((b) => !before.includes(b.id)).map((b) => b.id))
             resolve([ids.size, all.result.filter((e) => ids.has(e.bag_id)).map((e) => e.kind)])
           }
         }
       }),
-    since,
+    before,
   )
   expect(added).toBe(3)
   expect(events).toEqual([])

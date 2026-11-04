@@ -5,10 +5,11 @@
   import StarsSheet from './StarsSheet.svelte'
   import TempIcon from './TempIcon.svelte'
   import type { Brew } from '../lib/domain/types'
-  import { brewerLabel } from '../lib/domain/brew'
+  import { brewLink, brewerLabel } from '../lib/domain/brew'
   import { suggestTempBand } from '../lib/domain/tempBand'
   import { inventory } from '../lib/state/inventory.svelte'
   import { brewers, users } from '../lib/state/live.svelte'
+  import { href } from '../lib/state/router.svelte'
   import { tastingState } from '../lib/state/tastings.svelte'
 
   let sheet = $state<{ brew: Brew; userId: string } | null>(null)
@@ -20,10 +21,10 @@
   <section class="strip" aria-label="Pending tastings">
     {#each tastingState.cups as c (c.brew.id)}
       <div class="item" role="group" aria-label="Cup: {titleOf(c.brew)}">
-        <span class="text">
+        <a class="text" href={href(brewLink(c.brew.id))}>
           <span class="title">{titleOf(c.brew)}</span>
           <span class="muted">{brewerLabel(c.brew, brewers.rows)} · <TempIcon band={suggestTempBand(c.minutes, tastingState.thresholds)} size={16} word /> · {Math.round(c.minutes)}m</span>
-        </span>
+        </a>
         <span class="who">
           {#each users.rows.filter((u) => !c.dismissed.has(u.id)) as u (u.id)}
             {@const t = c.latest.get(u.id)}
@@ -70,6 +71,8 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    color: var(--text);
+    text-decoration: none;
   }
   .title {
     font-size: 15px;

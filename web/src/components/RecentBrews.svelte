@@ -1,10 +1,11 @@
 <script lang="ts">
   import Avatar from './Avatar.svelte'
   import MethodIcon from './MethodIcon.svelte'
-  import { brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
+  import { brewLink, brewerLabel, paramSummary, paramsOf } from '../lib/domain/brew'
   import { inventory } from '../lib/state/inventory.svelte'
   import { latestTastings } from '../lib/domain/tasting'
   import { brewers, brews, tastings, users } from '../lib/state/live.svelte'
+  import { href } from '../lib/state/router.svelte'
   import { timeAgo } from '../lib/state/shortcuts.svelte'
 
   let { limit = 8 }: { limit?: number } = $props()
@@ -15,7 +16,7 @@
 </script>
 
 {#each recent as b (b.id)}
-  <div class="brew">
+  <a class="brew" href={href(brewLink(b.id))}>
     <MethodIcon method={b.method} />
     <span class="text">
       <strong>{inventory.byId.get(b.bag_id)?.title ?? 'Bag'}</strong>
@@ -32,7 +33,7 @@
       <Avatar user={users.get(b.brewer_user_id)} size={24} />
       <span class="muted">{timeAgo(b.brewed_at)}</span>
     </span>
-  </div>
+  </a>
 {:else}
   <p class="muted">Nothing brewed yet.</p>
 {/each}
@@ -44,6 +45,8 @@
     gap: 12px;
     padding: 8px 0;
     border-bottom: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
   }
   .text {
     display: flex;

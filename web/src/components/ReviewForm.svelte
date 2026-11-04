@@ -13,6 +13,7 @@
   import { FLAVOR_FAMILIES, tagsFromNotes } from '../lib/domain/flavors'
   import type { BagView } from '../lib/domain/inventory'
   import { aliases, coffees, extractions, roasters } from '../lib/state/live.svelte'
+  import { showToast } from '../lib/state/toast.svelte'
 
   let { view, onsaved }: { view: BagView; onsaved: () => void } = $props()
 
@@ -104,7 +105,8 @@
       await saveReview({
         bagId: view.id,
         form: $state.snapshot(form),
-        flavorTags: tags,
+        // A reactive array (proxy) can't be stored in IndexedDB
+        flavorTags: $state.snapshot(tags),
         roasters: roasters.rows,
         coffees: coffees.rows,
         aliases: aliases.rows,
@@ -113,6 +115,9 @@
         hasExtraction: extraction?.status === 'done',
       })
       onsaved()
+    } catch (e) {
+      console.error(e)
+      showToast('Couldn’t save the details — try again')
     } finally {
       saving = false
     }

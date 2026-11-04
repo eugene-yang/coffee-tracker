@@ -42,6 +42,9 @@ export function paramsOf(src: Brew | Recipe): BrewParams {
   }
 }
 
+/** The page of one saved brew (its recipe, laps and ratings); /brew/:bagId is the live brew screen. */
+export const brewLink = (brewId: string) => `/brews/${brewId}`
+
 const newestFirst = (a: Brew, b: Brew) => b.brewed_at.localeCompare(a.brewed_at)
 
 /**
@@ -208,6 +211,38 @@ export function stepLine(s: RecipeStep): string {
   return [s.label, typeof s.at_s === 'number' ? formatClock(s.at_s) : null, s.to_g != null ? `→ ${s.to_g} g` : null, s.note]
     .filter(Boolean)
     .join(' · ')
+}
+
+/**
+ * Laps clicked during a brew as recipe steps: each lap ends a step, so Start → lap 1 is Step 1 and
+ * the last lap → Done is the final step. No laps, no steps.
+ */
+export function stepsFromLaps(laps: number[] | null | undefined): RecipeStep[] {
+  if (!laps?.length) return []
+  const starts = [0, ...laps.map((l) => Math.round(l))]
+  return starts.map((at_s, i) => ({ label: `Step ${i + 1}`, at_s }))
+}
+
+export interface LapRow {
+  label: string
+  at_s: number
+  split_s: number
+}
+
+/** A brew's laps with the time since the one before, then Done at the brew time if it came later. */
+export function lapRows(laps: number[] | null | undefined, timeS: number | null): LapRow[] {
+  if (!laps?.length) return []
+  const marks = laps.map((at_s, i) => ({ label: `Lap ${i + 1}`, at_s }))
+  if (timeS != null && timeS > laps[laps.length - 1]) marks.push({ label: 'Done', at_s: timeS })
+  return marks.map((m, i) => ({ ...m, split_s: m.at_s - (marks[i - 1]?.at_s ?? 0) }))
+}
+
+/** "0:42–1:30" for step i, ending at the next step or at `endS` (the brew time) for the last one. */
+export function stepSpan(steps: RecipeStep[], i: number, endS: number | null): string {
+  const from = steps[i]?.at_s
+  if (typeof from !== 'number') return ''
+  const to = steps[i + 1]?.at_s ?? endS
+  return typeof to === 'number' && to > from ? `${formatClock(from)}–${formatClock(to)}` : `from ${formatClock(from)}`
 }
 
 /** Parse "0:00 Bloom 50g" / "1:30 pour to 250" lines typed on the phone into steps. */

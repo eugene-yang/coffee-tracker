@@ -13,7 +13,7 @@
     { key: 'tastings', href: '/tastings', label: 'Tastings' },
     { key: 'settings', href: '/settings', label: 'Settings' },
   ]
-  const title = $derived(section === 'brew' ? 'Brew' : (tabs.find((t) => t.key === section)?.label ?? 'Coffee'))
+  const title = $derived(section === 'brew' || section === 'brews' ? 'Brew' : (tabs.find((t) => t.key === section)?.label ?? 'Coffee'))
 </script>
 
 <div class="phone">
